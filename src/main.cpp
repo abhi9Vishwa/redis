@@ -10,12 +10,32 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+void handle_sigint(int) {
+    close(server_fd);
+    exit(0);
+}
+
+void handle_client(int client_fd) {
+    char buffer[1024];
+    while (true) {
+        memset(buffer, 0, sizeof(buffer));
+        int bytes_recv = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (bytes_recv <= 0) break;
+        string req(buffer, bytes_recv);
+        if (req.find("PING") != string::npos) {
+            string response = "+PONG\r\n";
+            send(client_fd, response.c_str(), response.size(), 0);
+        }
+    }
+    close(client_fd);
+}
 int main(int argc, char **argv) {
+  signal(SIGINT, handle_sigint);
   // Flush after every std::cout / std::cerr
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
   
-  int server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0) {
    std::cerr << "Failed to create server socket\n";
    return 1;
@@ -54,14 +74,16 @@ int main(int argc, char **argv) {
 
   // Uncomment this block to pass the first stage
   // 
-  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-  std::cout << "Client connected\n";
   
-  string response = "+PONG\r\n";
-  send(client_fd, response.c_str(), response.size(), 0);
-
+  while (true)
+  {
+	  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+	  std::cout << "Client connected\n";
+	  thread(handle_client, client_fd);
+  }
+  
+  
   close(server_fd);
-  close(client_fd);
 
   return 0;
 }
