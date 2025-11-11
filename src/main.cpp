@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <string>
+#include <chrono>
 #include <cstring>
 #include <unistd.h>
 #include <sys/types.h>
@@ -12,7 +13,26 @@ using namespace std;
 
 int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-unordered_map<string, string> redis;
+struct StreamEntry {
+    string id;
+    unordered_map<string, string> fields;
+};
+
+unordered_map<string, vector<StreamEntry>> streamStore;
+mutex stream_mtx;
+
+unordered_map<string, string> store;
+mutex store_mtx;
+
+unordered_map<string, long long> expiry;
+
+// to be implemented later
+unordered_map<string, vector<string>> listStore;
+
+long long now_ms(){
+    using namespace chrono;
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
 
 void handle_sigint(int) {
     close(server_fd);
@@ -59,23 +79,77 @@ void handleEcho(string & str, int clientFd){
     send(clientFd, str.c_str(), str.size(), 0);
 }
 
-void handleSet(string& key, string& val, int clientFd){
-    redis[key] = val;
+void handleSet(string& key, string& val, int clientFd, string opt = "", string expiryStr = "-1"){
+    int expiryVal = stoi(expiryStr);
+    long long expire_at = -1;
+
+    if(opt == "EX"){
+        expire_at = now_ms() + expiryVal * 1000LL;
+    }
+    else if(opt == "PX"){
+        expire_at = now_ms() + expiryVal;
+    }
+
+    {
+        lock_guard<mutex> lock(store_mtx); 
+        store[key] = val;
+        if(expire_at != -1) expiry[key] = expire_at;
+        else expiry.erase(key);
+    }
     string resp = "+OK\r\n";
     send(clientFd, resp.c_str(), resp.size(), 0);
 }
 
 void handleGet(string& key, int clientFd){
     string resp = "";
-    if(redis.find(key) == redis.end()){
+    lock_guard<mutex> lock(store_mtx);
+
+    if(store.find(key) == store.end()){
         resp = RESPBulkStringEncoder("");
     }
     else{
-        resp = RESPBulkStringEncoder(redis[key]);
+        if(expiry.find(key) != expiry.end() && now_ms() >= expiry[key]){
+            store.erase(key);
+            expiry.erase(key);
+            resp = RESPBulkStringEncoder("");
+        }
+        else{
+            resp = RESPBulkStringEncoder(store[key]);
+        }
     }
     send(clientFd, resp.c_str(), resp.size(), 0);
 }
 
+void handleType(string& key, int client_fd){
+    string resp ="";
+    if(store.find(key) != store.end()){
+        resp = "string";
+    }else if(listStore.find(key) != listStore.end()){
+        resp = "list";
+    } 
+    else if(streamStore.find(key) != streamStore.end()){
+        resp = "stream";
+    }
+    else resp = "none";
+    resp = RESPBulkStringEncoder(resp);
+    send(client_fd, resp.c_str(), resp.size(), 0);
+}
+
+void handleStreamAdd(vector<string>& input, int& client_fd){
+    string streamId = input[1];
+    StreamEntry entry;
+    entry.id = input[2];
+    for (size_t i = 3; i < input.size(); i+=2){
+        entry.fields[input[i]] = input[i+1];
+    }
+    {
+        lock_guard lock(stream_mtx);
+        streamStore[streamId].push_back(entry);
+    }
+
+    string resp = RESPBulkStringEncoder(input[2]);
+    send(client_fd, resp.c_str(), resp.size(), 0);
+}
 
 void handle_client(int client_fd) {
     char buffer[1024];
@@ -95,10 +169,19 @@ void handle_client(int client_fd) {
                 handleEcho(cmds[1], client_fd);
             }
             if(cmds[i] == "SET"){
-                handleSet(cmds[1], cmds[2], client_fd);
+                if(cmds.size() == 5){
+                    handleSet(cmds[1], cmds[2], client_fd, cmds[3], cmds[4]);
+                }
+                else if(cmds.size() == 3) handleSet(cmds[1], cmds[2], client_fd);
             }
             if(cmds[i] == "GET"){
                 handleGet(cmds[1], client_fd);
+            }
+            if(cmds[i] == "TYPE"){
+                handleType(cmds[i+1], client_fd);
+            }
+            if(cmds[0] == "XADD"){
+                handleStreamAdd(cmds, client_fd);
             }
           }
         }
@@ -148,8 +231,7 @@ int main(int argc, char **argv) {
   std::cout << "Logs from your program will appear here!\n";
 
   // Uncomment this block to pass the first stage
-  // 
-  
+
   while (true)
   {
 	  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
