@@ -139,46 +139,97 @@ void handleType(string& key, int client_fd) {
 }
 
 void handleStreamAdd(vector<string>& input, int& client_fd) {
+	if (input.size() < 4 || (input.size() - 3) % 2 != 0) {
+		string err = "-ERR wrong number of arguments for 'xadd' command\r\n";
+		send(client_fd, err.c_str(), err.size(), 0);
+		return;
+	}
+
 	string streamId = input[1];
+	string givenId = input[2];
 	StreamEntry entry;
-	entry.id = input[2];
-	size_t sepIdx = input[2].find('-');
-	long long na = stoll(input[2].substr(0, sepIdx));
-	long long nb = stoll(input[2].substr(sepIdx));
+	string resp;
+	int flag = 0;
+	long long na;
+	long long nb;
+    cout << "Input :" << givenId << endl;
+	if (givenId == "*") {
+		flag = 1;
+	} else {
+		size_t sepIdx = givenId.find('-');
+		if (sepIdx == string::npos) {
+			string err = "-ERR wrong entry id format\r\n";
+			send(client_fd, err.c_str(), err.size(), 0);
+			return;
+		}
 
-	string resp = RESPBulkStringEncoder(input[2]);
-
+		try {
+			na = stoll(givenId.substr(0, sepIdx));
+			string seqPart = givenId.substr(sepIdx + 1);
+			if (seqPart == "*")
+				flag = 2;
+			else {
+				nb = stoll(seqPart);
+				flag = 3;
+			}
+		} catch (...) {
+			string err = "-ERR invalid stream ID\r\n";
+			send(client_fd, err.c_str(), err.size(), 0);
+			return;
+		}
+	}
+    cout << "flag: " << flag << endl;
 	for (size_t i = 3; i < input.size(); i += 2) {
 		entry.fields[input[i]] = input[i + 1];
 	}
+
 	{
 		lock_guard lock(stream_mtx);
 		if (streamStore.find(streamId) == streamStore.end())
-			streamStore[streamId].push_back(entry);
-		else {
-			StreamEntry lastEntry = streamStore[streamId].back();
-			string id = lastEntry.id;
-			sepIdx = id.find('-');
-			long long a = stoll(id.substr(0, sepIdx));
-			long long b = stoll(id.substr(sepIdx));
+			streamStore[streamId] = vector<StreamEntry>();
 
-			if (na < a)
-				resp =
-					"(error) ERR The ID specified in XADD must be greater "
-					"than " +
-					id;
-			else if (na == a && nb <= b)
-				resp =
-					"(error) ERR The ID specified in XADD must be greater "
-					"than " +
-					id;
-			else {
-				streamStore[streamId].push_back(entry);
-			}
+        vector<StreamEntry> &vec = streamStore[streamId];
+        long long last_ms = 0, last_seq = 0;
+
+        if(!vec.empty()){
+            string lastId = vec.back().id;
+            size_t sep = lastId.find('-');
+            last_ms = stoll(lastId.substr(0, sep));
+            last_seq = stoll(lastId.substr(sep + 1));
+        }
+
+		if (flag == 1) {
+			na = now_ms();
+			if (na == last_ms)
+				nb = last_seq + 1;
+			else
+				nb = 0;
 		}
+		else if (flag == 2) {
+			if (na < last_ms) {
+				string err = "(error) ERR The ID specified in XADD must be greater "
+					"than " +
+					to_string(last_ms) + "-" + to_string(last_seq);
+				send(client_fd, err.c_str(), err.size(), 0);
+				return;
+			}
+			if (na == last_ms)
+				nb = last_seq + 1;
+			else
+				nb = 0;
+		}
+		if (flag == 3) {
+			if (na < last_ms || (na == last_ms && nb <= last_seq)) {
+                string err = "-ERR The ID specified in XADD must be greater than the last to" +to_string(last_ms) + "-" + to_string(last_seq) + "\r\n";
+                send(client_fd, err.c_str(), err.size(), 0);
+                return;
+            }
+		}
+		entry.id = to_string(na) + '-' + to_string(nb);
+		vec.push_back(entry);
 	}
-
-	send(client_fd, resp.c_str(), resp.size(), 0);
+    resp = "$" + to_string(entry.id.size()) + "\r\n" + entry.id + "\r\n";
+    send(client_fd, resp.c_str(), resp.size(), 0);
 }
 
 void handle_client(int client_fd) {
@@ -211,7 +262,8 @@ void handle_client(int client_fd) {
 						handleEcho(cmds[1], client_fd);
 					} else if (cmd == "SET") {
 						if (cmds.size() == 5)
-							handleSet(cmds[1], cmds[2], client_fd, cmds[3], cmds[4]);
+							handleSet(cmds[1], cmds[2], client_fd, cmds[3],
+									  cmds[4]);
 						else if (cmds.size() >= 3)
 							handleSet(cmds[1], cmds[2], client_fd);
 					} else if (cmd == "GET" && cmds.size() >= 2) {
