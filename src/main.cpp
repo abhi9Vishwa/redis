@@ -12,6 +12,8 @@
 #include <string>
 using namespace std;
 
+using ll = long long;
+
 int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
 struct StreamEntry {
@@ -34,6 +36,40 @@ long long now_ms() {
 	using namespace chrono;
 	return duration_cast<milliseconds>(system_clock::now().time_since_epoch())
 		.count();
+}
+
+pair<long long, long long> parseStreamId(const string& id, int end = 0) {
+	size_t sepIdx = id.find('-');
+	if (sepIdx == string::npos) {
+		if (end == 0)
+			return {stoll(id), 0};
+		else
+			return {stoll(id), INT_MAX};
+	}
+	long long a = stoll(id.substr(0, sepIdx));
+	long long b = stoll(id.substr(sepIdx + 1));
+
+	return {a, b};
+}
+
+int binarySearch(string& target, vector<StreamEntry>& vec) {
+	int l = 0;
+	int r = vec.size() - 1;
+
+	pair<ll, ll> tarPair = parseStreamId(target);
+
+	while (l <= r) {
+		int m = r - (l + r) / 2;
+
+		pair<ll, ll> mp = parseStreamId(vec[m].id);
+		if (mp == tarPair)
+			return m;
+		else if (mp < tarPair)
+			l = m + 1;
+		else
+			r = m - 1;
+	}
+	return -1;
 }
 
 void handle_sigint(int) {
@@ -152,7 +188,7 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
 	int flag = 0;
 	long long na;
 	long long nb;
-    cout << "Input :" << givenId << endl;
+	cout << "Input :" << givenId << endl;
 	if (givenId == "*") {
 		flag = 1;
 	} else {
@@ -178,7 +214,7 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
 			return;
 		}
 	}
-    cout << "flag: " << flag << endl;
+	cout << "flag: " << flag << endl;
 	for (size_t i = 3; i < input.size(); i += 2) {
 		entry.fields[input[i]] = input[i + 1];
 	}
@@ -188,15 +224,15 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
 		if (streamStore.find(streamId) == streamStore.end())
 			streamStore[streamId] = vector<StreamEntry>();
 
-        vector<StreamEntry> &vec = streamStore[streamId];
-        long long last_ms = 0, last_seq = 0;
+		vector<StreamEntry>& vec = streamStore[streamId];
+		long long last_ms = 0, last_seq = 0;
 
-        if(!vec.empty()){
-            string lastId = vec.back().id;
-            size_t sep = lastId.find('-');
-            last_ms = stoll(lastId.substr(0, sep));
-            last_seq = stoll(lastId.substr(sep + 1));
-        }
+		if (!vec.empty()) {
+			string lastId = vec.back().id;
+			size_t sep = lastId.find('-');
+			last_ms = stoll(lastId.substr(0, sep));
+			last_seq = stoll(lastId.substr(sep + 1));
+		}
 
 		if (flag == 1) {
 			na = now_ms();
@@ -204,10 +240,10 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
 				nb = last_seq + 1;
 			else
 				nb = 0;
-		}
-		else if (flag == 2) {
+		} else if (flag == 2) {
 			if (na < last_ms) {
-				string err = "(error) ERR The ID specified in XADD must be greater "
+				string err =
+					"(error) ERR The ID specified in XADD must be greater "
 					"than " +
 					to_string(last_ms) + "-" + to_string(last_seq);
 				send(client_fd, err.c_str(), err.size(), 0);
@@ -220,16 +256,64 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
 		}
 		if (flag == 3) {
 			if (na < last_ms || (na == last_ms && nb <= last_seq)) {
-                string err = "-ERR The ID specified in XADD must be greater than the last to" +to_string(last_ms) + "-" + to_string(last_seq) + "\r\n";
-                send(client_fd, err.c_str(), err.size(), 0);
-                return;
-            }
+				string err =
+					"-ERR The ID specified in XADD must be greater than the "
+					"last to" +
+					to_string(last_ms) + "-" + to_string(last_seq) + "\r\n";
+				send(client_fd, err.c_str(), err.size(), 0);
+				return;
+			}
 		}
 		entry.id = to_string(na) + '-' + to_string(nb);
 		vec.push_back(entry);
 	}
-    resp = "$" + to_string(entry.id.size()) + "\r\n" + entry.id + "\r\n";
-    send(client_fd, resp.c_str(), resp.size(), 0);
+	resp = "$" + to_string(entry.id.size()) + "\r\n" + entry.id + "\r\n";
+	send(client_fd, resp.c_str(), resp.size(), 0);
+}
+
+string RESPEncodeStream(vector<StreamEntry>& vec) {
+	string res;
+
+	size_t totSize = vec.size();
+	res = string("*") + to_string(totSize) + "\r\n";
+	res += string("*") + "2" + "\r\n";	// to account for StreamEntry
+
+	for (auto& i : vec) {
+		res += "$" + to_string(i.id.size()) + "\r\n" + i.id + "\r\n";
+		res += string("*") + to_string(i.fields.size() * 2) + "\r\n";
+		for (auto& j : i.fields) {
+			res += "$" + to_string(j.first.size()) + "\r\n" + j.first + "\r\n";
+			res +=
+				"$" + to_string(j.second.size()) + "\r\n" + j.second + "\r\n";
+		}
+	}
+	return res;
+}
+
+void handleXRange(string& streamId, string& entryIdStart, string& entryIdEnd,
+				  int& client_fd) {
+	auto& data = streamStore[streamId];
+	if (data.empty()) {
+		string err = "-ERR wrong streamID provided\r\n";
+		send(client_fd, err.c_str(), err.size(), 0);
+		return;
+	}
+
+	int stIdx = binarySearch(entryIdStart, data);
+	if (stIdx == -1) {
+		string err = "-ERR Given entry ID is  not present\r\n";
+		send(client_fd, err.c_str(), err.size(), 0);
+		return;
+	} else {
+		pair<ll, ll> endID = parseStreamId(entryIdEnd, 1);
+		vector<StreamEntry> res;
+		while (stIdx < data.size() && parseStreamId(data[stIdx].id) <= endID) {
+			res.push_back(data[stIdx]);
+			stIdx++;
+		}
+		string resp = RESPEncodeStream(res);
+		send(client_fd, resp.c_str(), resp.size(), 0);
+	}
 }
 
 void handle_client(int client_fd) {
@@ -272,6 +356,8 @@ void handle_client(int client_fd) {
 						handleType(cmds[1], client_fd);
 					} else if (cmd == "XADD") {
 						handleStreamAdd(cmds, client_fd);
+					} else if (cmd == "XRANGE") {
+						handleXRange(cmds[1], cmds[2], cmds[3], client_fd);
 					} else {
 						string err = "-ERR unknown command\r\n";
 						send(client_fd, err.c_str(), err.size(), 0);
