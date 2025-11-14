@@ -1,8 +1,8 @@
 import socket
 import time
 
-def 
-(host: str, port: int, command: list[str]):
+def send_resp_command(host: str, port: int, command: list[str]):
+    # time.sleep(1)
     # Encode the command in RESP format
     resp = f"*{len(command)}\r\n"
     for arg in command:
@@ -19,15 +19,18 @@ def
 
 if __name__ == "__main__":
     # Example: send ECHO hey
-    # send_resp_command("127.0.0.1", 6379, ["ECHO", "hey"])
-    # send_resp_command("127.0.0.1", 6379, ["GET", "hello"])
-    # send_resp_command("127.0.0.1", 6379, ["SET", "hello", "okay", "EX", "5"])
-    # send_resp_command("127.0.0.1", 6379, ["GET", "hello"])
-    # send_resp_command("127.0.0.1", 6379, ["GET", "hello"])
+    send_resp_command("127.0.0.1", 6379, ["ECHO", "hey"])
+    send_resp_command("127.0.0.1", 6379, ["GET", "hello"])
+    send_resp_command("127.0.0.1", 6379, ["SET", "hello", "okay", "EX", "5"])
+    send_resp_command("127.0.0.1", 6379, ["GET", "hello"])
+    send_resp_command("127.0.0.1", 6379, ["GET", "hello"])
     send_resp_command("127.0.0.1", 6379, ["TYPE", "hello"])
-    # send_resp_command("127.0.0.1", 6379, ["XADD", "stream_key1", "0-1", "foo", "bar"])
-    # send_resp_command("127.0.0.1", 6379, ["XADD", "stream_key", "1526919030474-0", "temperature", "36", "humidity", "95"])
+    send_resp_command("127.0.0.1", 6379, ["XADD", "stream_key", "1-*", "foo", "bar"])
+    send_resp_command("127.0.0.1", 6379, ["XADD", "stream_key", "1-*", "temperature", "36", "humidity", "95"])
+    send_resp_command("127.0.0.1", 6379, ["XADD", "stream_key", "1-*", "foo", "bar"])
+    send_resp_command("127.0.0.1", 6379, ["XADD", "stream_key", "1-*", "temperature", "36", "humidity", "95"])
     send_resp_command("127.0.0.1", 6379, ["TYPE", "stream_key"])
+    send_resp_command("127.0.0.1", 6379, ["XRANGE", "stream_key", "-", "+"])
 
 
 
