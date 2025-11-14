@@ -298,14 +298,19 @@ void handleXRange(string& streamId, string& entryIdStart, string& entryIdEnd,
 		send(client_fd, err.c_str(), err.size(), 0);
 		return;
 	}
-
-	int stIdx = binarySearch(entryIdStart, data);
+	int stIdx;
+	if (entryIdStart == "-")
+		stIdx = 0;
+	else
+		stIdx = binarySearch(entryIdStart, data);
 	if (stIdx == -1) {
 		string err = "-ERR Given entry ID is  not present\r\n";
 		send(client_fd, err.c_str(), err.size(), 0);
 		return;
 	} else {
-		pair<ll, ll> endID = parseStreamId(entryIdEnd, 1);
+        pair<ll, ll> endID ;
+        if(entryIdEnd == "+") endID = {LLONG_MAX, LLONG_MAX};
+		else endID = parseStreamId(entryIdEnd, 1);
 		vector<StreamEntry> res;
 		while (stIdx < data.size() && parseStreamId(data[stIdx].id) <= endID) {
 			res.push_back(data[stIdx]);
