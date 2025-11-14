@@ -52,7 +52,7 @@ pair<long long, long long> parseStreamId(const string& id, int end = 0) {
     return { a, b };
 }
 
-int binarySearch(string& target, vector<StreamEntry>& vec) {
+int binarySearch(const string& target, const vector<StreamEntry>& vec) {
     int l = 0;
     int r = vec.size() - 1;
 
@@ -304,7 +304,7 @@ string RESPEncodeStream(vector<StreamEntry>& vec) {
     return res;
 }
 
-string handleXRange(string& streamId, string& entryIdStart, string& entryIdEnd, int& client_fd) {
+string handleXRange(const string& streamId, const string& entryIdStart, const string& entryIdEnd, int& client_fd) {
     lock_guard lock(stream_mtx);
     string resp;
     auto& data = streamStore[streamId];
@@ -339,10 +339,13 @@ string handleXRange(string& streamId, string& entryIdStart, string& entryIdEnd, 
     return resp;
 }
 
-void handleXRead(string& streamCmd, string& streamId, string& entryStartId,
-    int& client_fd) {
+string handleXRead(string& streamCmd, string& streamId, string& entryIdStart, int& client_fd) {
     string resp;
     resp = string("*") + "1" + "\r\n";
+    resp += string("*") + "2" + "\r\n";
+    resp += string("$") + "\r\n" + streamId + "\r\n";
+    resp += handleXRange(streamId, entryIdStart, "+", client_fd);
+    return resp;
 }
 
 void handle_client(int client_fd) {
@@ -399,7 +402,8 @@ void handle_client(int client_fd) {
                         sendData(res, client_fd);
                     }
                     else if (cmd == "XREAD") {
-                        handleXRead(cmds[1], cmds[2], cmds[3], client_fd);
+                        string res = handleXRead(cmds[1], cmds[2], cmds[3], client_fd);
+                        sendData(res, client_fd);
                     }
                     else {
                         string err = "-ERR unknown command\r\n";
