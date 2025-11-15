@@ -304,47 +304,91 @@ string RESPEncodeStream(vector<StreamEntry>& vec) {
     return res;
 }
 
-string handleXRange(const string& streamId, const string& entryIdStart, const string& entryIdEnd, int& client_fd) {
+vector<StreamEntry> getXRangeEntry(const string& streamId, const string& entryIdStart, const string& entryIdEnd){
     lock_guard lock(stream_mtx);
-    string resp;
     auto& data = streamStore[streamId];
-    if (data.empty()) {
-        string resp = "*0\r\n";	 // empty array
-        send(client_fd, resp.c_str(), resp.size(), 0);
-        return;
+    if (data.empty()) { // empty array
+        return {};
     }
     int stIdx;
     if (entryIdStart == "-")
         stIdx = 0;
     else
         stIdx = binarySearch(entryIdStart, data);
-    if (stIdx == -1) {
-        string err = "-ERR Given entry ID is  not present\r\n";
-        send(client_fd, err.c_str(), err.size(), 0);
-        return;
+    
+    pair<ll, ll> endID;
+    if (entryIdEnd == "+")
+        endID = { LLONG_MAX, LLONG_MAX };
+    else
+        endID = parseStreamId(entryIdEnd, 1);
+    vector<StreamEntry> res;
+    while (stIdx < data.size() && parseStreamId(data[stIdx].id) <= endID) {
+        res.push_back(data[stIdx]);
+        stIdx++;
     }
-    else {
-        pair<ll, ll> endID;
-        if (entryIdEnd == "+")
-            endID = { LLONG_MAX, LLONG_MAX };
-        else
-            endID = parseStreamId(entryIdEnd, 1);
-        vector<StreamEntry> res;
-        while (stIdx < data.size() && parseStreamId(data[stIdx].id) <= endID) {
-            res.push_back(data[stIdx]);
-            stIdx++;
-        }
-        resp = RESPEncodeStream(res);
-    }
+    return res;
+}
+
+string handleXRange(const string& streamId, const string& entryIdStart, const string& entryIdEnd) {
+    string resp;
+    vector<StreamEntry> res;
+
+    resp = RESPEncodeStream(res);
     return resp;
 }
 
-string handleXRead(string& streamCmd, string& streamId, string& entryIdStart, int& client_fd) {
-    string resp;
-    resp = string("*") + "1" + "\r\n";
-    resp += string("*") + "2" + "\r\n";
-    resp += string("$") + "\r\n" + streamId + "\r\n";
-    resp += handleXRange(streamId, entryIdStart, "+", client_fd);
+string handleXRead(vector<string>& cmd, int& client_fd) {
+    int streamsPos = -1;
+    for (int i = 0; i < cmd.size(); i++) {
+        if (cmd[i] == "STREAMS") {
+            streamsPos = i;
+            break;
+        }
+    }
+
+    if (streamsPos == -1 || streamsPos + 1 >= cmd.size()) {
+        return "-ERR syntax error\r\n";
+    }
+
+    int numStreams = (cmd.size() - streamsPos - 1) / 2;
+    if (numStreams <= 0) {
+        return "-ERR wrong number of arguments for 'XREAD'\r\n";
+    }
+ 
+    vector<string> streams;
+    vector<string> ids;
+
+    for (int i = streamsPos + 1; i < streamsPos + 1 + numStreams; i++)
+        streams.push_back(cmd[i]);
+    for (int i = streamsPos + 1 + numStreams; i < cmd.size(); i++)
+        ids.push_back(cmd[i]);
+
+    if (streams.size() != ids.size()) {
+        return "-ERR number of streams and IDs must match\r\n";
+    }
+
+    // Build response array
+    string resp = "*" + to_string(streams.size()) + "\r\n";
+
+    for (int i = 0; i < streams.size(); i++) {
+        string streamId = streams[i];
+        string startId = ids[i];
+
+        // Call XRANGE-like helper to get entries newer than startId
+        vector<StreamEntry> rangeRes = getXRangeEntry(streamId, startId, "+");
+        string rangeResp = RESPEncodeStream(rangeRes);
+
+        for(auto t : rangeRes){
+            cout<<"id: " << t.id<<endl;
+            for(auto tf : t.fields){
+                cout<< "f1 "<< tf.first << "f2 " << tf.second << endl;
+            }
+        }
+        // Stream response = [streamName, entriesArray]
+        resp += "*2\r\n";
+        resp += "$" + to_string(streamId.size()) + "\r\n" + streamId + "\r\n";
+        resp += rangeResp;
+    }
     return resp;
 }
 
@@ -397,12 +441,11 @@ void handle_client(int client_fd) {
                         handleStreamAdd(cmds, client_fd);
                     }
                     else if (cmd == "XRANGE") {
-                        string res =
-                            handleXRange(cmds[1], cmds[2], cmds[3], client_fd);
+                        string res = handleXRange(cmds[1], cmds[2], cmds[3]);
                         sendData(res, client_fd);
                     }
                     else if (cmd == "XREAD") {
-                        string res = handleXRead(cmds[1], cmds[2], cmds[3], client_fd);
+                        string res = handleXRead(cmds, client_fd);
                         sendData(res, client_fd);
                     }
                     else {
