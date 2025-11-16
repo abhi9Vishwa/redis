@@ -27,6 +27,9 @@ mutex stream_mtx;
 unordered_map<string, string> store;
 mutex store_mtx;
 
+unordered_map<string, condition_variable> streamCVs;
+unordered_map<string, mutex> streamMtxMap;
+
 unordered_map<string, long long> expiry;
 
 // to be implemented later
@@ -124,8 +127,7 @@ void handleEcho(string& str, int clientFd) {
     send(clientFd, str.c_str(), str.size(), 0);
 }
 
-void handleSet(string& key, string& val, int clientFd, string opt = "",
-    string expiryStr = "-1") {
+void handleSet(string& key, string& val, int clientFd, string opt = "", string expiryStr = "-1") {
     int expiryVal = stoi(expiryStr);
     long long expire_at = -1;
 
@@ -281,11 +283,14 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
         entry.id = to_string(na) + '-' + to_string(nb);
         vec.push_back(entry);
     }
+    if (streamCVs.find(streamId) != streamCVs.end())
+        streamCVs[streamId].notify_all();
     resp = "$" + to_string(entry.id.size()) + "\r\n" + entry.id + "\r\n";
     send(client_fd, resp.c_str(), resp.size(), 0);
 }
 
 string RESPEncodeStream(vector<StreamEntry>& vec) {
+    if (vec.empty()) return "$-1\r\n";
     string res;
 
     size_t totSize = vec.size();
@@ -304,8 +309,7 @@ string RESPEncodeStream(vector<StreamEntry>& vec) {
     return res;
 }
 
-vector<StreamEntry> getXRangeEntry(const string& streamId, const string& entryIdStart, const string& entryIdEnd){
-    lock_guard lock(stream_mtx);
+vector<StreamEntry> getXRangeEntry(const string& streamId, const string& entryIdStart, const string& entryIdEnd) {
     auto& data = streamStore[streamId];
     if (data.empty()) { // empty array
         return {};
@@ -315,7 +319,7 @@ vector<StreamEntry> getXRangeEntry(const string& streamId, const string& entryId
         stIdx = 0;
     else
         stIdx = binarySearch(entryIdStart, data);
-    
+
     pair<ll, ll> endID;
     if (entryIdEnd == "+")
         endID = { LLONG_MAX, LLONG_MAX };
@@ -332,15 +336,24 @@ vector<StreamEntry> getXRangeEntry(const string& streamId, const string& entryId
 string handleXRange(const string& streamId, const string& entryIdStart, const string& entryIdEnd) {
     string resp;
     vector<StreamEntry> res;
-
+    {
+        lock_guard lock(stream_mtx);
+        res = getXRangeEntry(streamId, entryIdStart, entryIdEnd);
+    }
     resp = RESPEncodeStream(res);
     return resp;
 }
 
 string handleXRead(vector<string>& cmd, int& client_fd) {
     int streamsPos = -1;
-    for (int i = 0; i < cmd.size(); i++) {
-        if (cmd[i] == "STREAMS") {
+    int blockMs = -1;
+
+    for (int i = 1; i < cmd.size(); i++) {
+        if (cmd[i] == "BLOCK") {
+            if (i + 1 >= cmd.size()) return "-ERR syntax error\r\n";
+            blockMs = stoi(cmd[++i]);
+        }
+        else if (cmd[i] == "STREAMS") {
             streamsPos = i;
             break;
         }
@@ -354,7 +367,7 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
     if (numStreams <= 0) {
         return "-ERR wrong number of arguments for 'XREAD'\r\n";
     }
- 
+
     vector<string> streams;
     vector<string> ids;
 
@@ -373,15 +386,45 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
     for (int i = 0; i < streams.size(); i++) {
         string streamId = streams[i];
         string startId = ids[i];
+        vector<StreamEntry> rangeRes = {};
+        {
+            // Call XRANGE-like helper to get entries newer than startId
+            lock_guard lock(stream_mtx);
+            rangeRes = getXRangeEntry(streamId, startId, "+");
+        }
+        //check for existing entries
 
-        // Call XRANGE-like helper to get entries newer than startId
-        vector<StreamEntry> rangeRes = getXRangeEntry(streamId, startId, "+");
+        if (blockMs != -1 && rangeRes.empty()) {
+            unique_lock lock(stream_mtx);
+
+            if (streamCVs.find(streamId) == streamCVs.end()) {
+                streamCVs[streamId];
+            }
+            bool gotNew = streamCVs[streamId].wait_for(
+                lock, chrono::milliseconds(blockMs), [&] {
+                    if (!streamStore.count(streamId) || streamStore[streamId].empty())
+                        return false;
+                    auto lastIdPair = parseStreamId(streamStore[streamId].back().id);
+                    return lastIdPair > parseStreamId(startId);
+                }
+            );
+            if (gotNew) {
+                lock.unlock();
+                rangeRes = getXRangeEntry(streamId, startId, "+");
+            }
+            else {
+                lock.unlock();
+                return "$-1\r\n";
+            }
+        }
+        if (rangeRes.empty()) continue;
+
         string rangeResp = RESPEncodeStream(rangeRes);
 
-        for(auto t : rangeRes){
-            cout<<"id: " << t.id<<endl;
-            for(auto tf : t.fields){
-                cout<< "f1 "<< tf.first << "f2 " << tf.second << endl;
+        for (auto t : rangeRes) {
+            cout << "id: " << t.id << endl;
+            for (auto tf : t.fields) {
+                cout << "f1 " << tf.first << "f2 " << tf.second << endl;
             }
         }
         // Stream response = [streamName, entriesArray]
@@ -389,6 +432,8 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
         resp += "$" + to_string(streamId.size()) + "\r\n" + streamId + "\r\n";
         resp += rangeResp;
     }
+    if (resp == "*0\r\n")
+        return "$-1\r\n";  // nothing found
     return resp;
 }
 
