@@ -32,6 +32,7 @@ unordered_map<string, mutex> streamMtxMap;
 
 unordered_map<string, long long> expiry;
 
+unordered_map<int, queue<vector<string>>> multiQueue;
 // to be implemented later
 unordered_map<string, vector<string>> listStore;
 
@@ -41,13 +42,13 @@ long long now_ms() {
         .count();
 }
 
-bool checkIsStrNum(const string& s){
+bool checkIsStrNum(const string& s) {
     int n = s.size();
-    int i =0;
-    while(s[i] == ' '){ i++ ;}
+    int i = 0;
+    while (s[i] == ' ') { i++; }
     if (i == n) return false;
 
-    if(s[i] == '-' || s[i] =='+') i++;
+    if (s[i] == '-' || s[i] == '+') i++;
     if (i == n) return false;
 
     bool hasDigit = false;
@@ -145,11 +146,11 @@ string RESPBulkStringEncoder(string str) {
     return ("$" + to_string(len) + "\r\n" + str + "\r\n");
 }
 
-void handleEcho(string& str, int clientFd) {
-    send(clientFd, str.c_str(), str.size(), 0);
+string handleEcho(string& str) {
+    return str;
 }
 
-void handleSet(string& key, string& val, int clientFd, string opt = "", string expiryStr = "-1") {
+string handleSet(string& key, string& val, string opt = "", string expiryStr = "-1") {
     int expiryVal = stoi(expiryStr);
     long long expire_at = -1;
 
@@ -169,10 +170,10 @@ void handleSet(string& key, string& val, int clientFd, string opt = "", string e
             expiry.erase(key);
     }
     string resp = "+OK\r\n";
-    send(clientFd, resp.c_str(), resp.size(), 0);
+    return resp;
 }
 
-void handleGet(string& key, int clientFd) {
+string handleGet(string& key) {
     string resp = "";
     lock_guard<mutex> lock(store_mtx);
 
@@ -189,10 +190,10 @@ void handleGet(string& key, int clientFd) {
             resp = RESPBulkStringEncoder(store[key]);
         }
     }
-    send(clientFd, resp.c_str(), resp.size(), 0);
+    return resp;
 }
 
-void handleType(string& key, int client_fd) {
+string handleType(string& key) {
     string resp = "";
     if (store.find(key) != store.end()) {
         resp = "string";
@@ -206,14 +207,13 @@ void handleType(string& key, int client_fd) {
     else
         resp = "none";
     resp = RESPBulkStringEncoder(resp);
-    send(client_fd, resp.c_str(), resp.size(), 0);
+    return resp;
 }
 
-void handleStreamAdd(vector<string>& input, int& client_fd) {
+string handleStreamAdd(vector<string>& input) {
     if (input.size() < 4 || (input.size() - 3) % 2 != 0) {
         string err = "-ERR wrong number of arguments for 'xadd' command\r\n";
-        send(client_fd, err.c_str(), err.size(), 0);
-        return;
+        return err;
     }
 
     string streamId = input[1];
@@ -231,8 +231,7 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
         size_t sepIdx = givenId.find('-');
         if (sepIdx == string::npos) {
             string err = "-ERR wrong entry id format\r\n";
-            send(client_fd, err.c_str(), err.size(), 0);
-            return;
+            return err;
         }
 
         try {
@@ -247,8 +246,7 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
         }
         catch (...) {
             string err = "-ERR invalid stream ID\r\n";
-            send(client_fd, err.c_str(), err.size(), 0);
-            return;
+            return err;
         }
     }
     cout << "flag: " << flag << endl;
@@ -284,8 +282,7 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
                     "(error) ERR The ID specified in XADD must be greater "
                     "than " +
                     to_string(last_ms) + "-" + to_string(last_seq);
-                send(client_fd, err.c_str(), err.size(), 0);
-                return;
+                return err;
             }
             if (na == last_ms)
                 nb = last_seq + 1;
@@ -298,20 +295,19 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
                     "-ERR The ID specified in XADD must be greater than the "
                     "last to" +
                     to_string(last_ms) + "-" + to_string(last_seq) + "\r\n";
-                send(client_fd, err.c_str(), err.size(), 0);
-                return;
+                return err;
             }
         }
         entry.id = to_string(na) + '-' + to_string(nb);
         vec.push_back(entry);
     }
     resp = "$" + to_string(entry.id.size()) + "\r\n" + entry.id + "\r\n";
-    send(client_fd, resp.c_str(), resp.size(), 0);
 
-    if (streamCVs.find(streamId) != streamCVs.end()){
+    if (streamCVs.find(streamId) != streamCVs.end()) {
         cout << "cond variable found" << endl;
         streamCVs[streamId].notify_all();
     }
+    return resp;
 }
 
 string RESPEncodeStream(vector<StreamEntry>& vec) {
@@ -369,7 +365,7 @@ string handleXRange(const string& streamId, const string& entryIdStart, const st
     return resp;
 }
 
-string handleXRead(vector<string>& cmd, int& client_fd) {
+string handleXRead(vector<string>& cmd) {
     int streamsPos = -1;
     int blockMs = -1;
 
@@ -412,20 +408,21 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
         string streamId = streams[i];
         string startId = ids[i];
         vector<StreamEntry> rangeRes = {};
-        
+
         {
             // Call XRANGE-like helper to get entries newer than startId
             lock_guard lock(stream_mtx);
-            if(startId == "$"){
+            if (startId == "$") {
                 if (streamStore.find(streamId) != streamStore.end() && !streamStore[streamId].empty()) {
                     startId = streamStore[streamId].back().id;
-                } else {
+                }
+                else {
                     startId = "0-0"; // empty stream — start from nothing
                 }
             }
             rangeRes = getXRangeEntry(streamId, startId, "+");
         }
-        
+
         //check for existing entries
         if (blockMs != -1 && rangeRes.empty()) {
             unique_lock ulock(stream_mtx);
@@ -434,26 +431,26 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
                 streamCVs[streamId];
             }
             bool gotNew = true;
-            if(blockMs == 0){
+            if (blockMs == 0) {
                 streamCVs[streamId].wait(
                     ulock, [&] {
                         if (!streamStore.count(streamId) || streamStore[streamId].empty())
-                        return false;
+                            return false;
                         auto lastIdPair = parseStreamId(streamStore[streamId].back().id);
                         return lastIdPair > parseStreamId(startId);
                     }
                 );
             }
-            else{
+            else {
                 bool gotNew = streamCVs[streamId].wait_for(
                     ulock, chrono::milliseconds(blockMs), [&] {
                         if (!streamStore.count(streamId) || streamStore[streamId].empty())
-                        return false;
+                            return false;
                         auto lastIdPair = parseStreamId(streamStore[streamId].back().id);
                         return lastIdPair > parseStreamId(startId);
                     }
                 );
-                
+
             }
             if (gotNew) {
                 // Fetch only the NEW entries that arrived during blocking
@@ -465,7 +462,7 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
                 return "$-1\r\n";
             }
         }
-        
+
         if (rangeRes.empty()) continue;
 
         string rangeResp = RESPEncodeStream(rangeRes);
@@ -476,27 +473,27 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
                 cout << "f1 " << tf.first << " f2 " << tf.second << endl;
             }
         }
-        
+
         // Stream response = [streamName, entriesArray]
         resp += "*2\r\n";
         resp += "$" + to_string(streamId.size()) + "\r\n" + streamId + "\r\n";
         resp += rangeResp;
     }
-    
+
     if (resp == "*0\r\n")
         return "$-1\r\n";  // nothing found
     return resp;
 }
 
-string handleIncr(string& key){
-    string resp ="";
+string handleIncr(string& key) {
+    string resp = "";
     lock_guard lock(store_mtx);
 
-    if(store.find(key) == store.end()){
-        store[key] = 1;
+    if (store.find(key) == store.end()) {
+        store[key] = "1";
     }
-    else{
-        if(checkIsStrNum(store[key])){
+    else {
+        if (checkIsStrNum(store[key])) {
             ll t = stoll(store[key]);
             t += 1;
             store[key] = to_string(t);
@@ -509,9 +506,89 @@ string handleIncr(string& key){
     return resp;
 }
 
+string handleMulti(int& client_fd) {
+    string resp = "";
+    resp += "+OK\r\n";
+
+    bool execFlag = false;
+
+    char buffer[4096];
+    string req;
+    while (true) {
+        memset(buffer, 0, sizeof(buffer));
+        int bytes_recv = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (bytes_recv <= 0)
+            break;
+
+        req.append(buffer, bytes_recv);
+        vector<string> cmds = RESPArrayParser(req);
+        if (cmds[0] != "EXEC") {
+            multiQueue[client_fd].push(cmds);
+        }
+        else {
+            while (!multiQueue[client_fd].empty()) {
+                vector<string> cmds = multiQueue[client_fd].front();
+                multiQueue[client_fd].pop();
+                processCmds(cmds, client_fd);
+            }
+            multiQueue.erase(client_fd);
+        }
+    }
+    return resp;
+}
+
+void processCmds(vector<string>& cmds, int& client_fd) {
+    string cmd = cmds[0];
+    if (cmd == "PING") {
+        string response = "+PONG\r\n";
+        send(client_fd, response.c_str(), response.size(), 0);
+    }
+    else if (cmd == "ECHO" && cmds.size() >= 2) {
+        handleEcho(cmds[1]);
+    }
+    else if (cmd == "SET") {
+        if (cmds.size() == 5)
+            handleSet(cmds[1], cmds[2], cmds[3], cmds[4]);
+        else if (cmds.size() >= 3)
+            handleSet(cmds[1], cmds[2]);
+    }
+    else if (cmd == "GET" && cmds.size() >= 2) {
+        handleGet(cmds[1]);
+    }
+    else if (cmd == "TYPE" && cmds.size() >= 2) {
+        handleType(cmds[1]);
+    }
+    else if (cmd == "XADD") {
+        handleStreamAdd(cmds);
+    }
+    else if (cmd == "XRANGE") {
+        string res = handleXRange(cmds[1], cmds[2], cmds[3]);
+        sendData(res, client_fd);
+    }
+    else if (cmd == "XREAD") {
+        string res = handleXRead(cmds);
+        sendData(res, client_fd);
+    }
+    else if (cmd == "INCR") {
+        string res = handleIncr(cmds[1]);
+        sendData(res, client_fd);
+    }
+    else if (cmd == "MULTI") {
+        string res = handleMulti(client_fd);
+        sendData(res, client_fd);
+    }
+    else if (cmd == "EXEC") {
+        string res = handleMulti(client_fd);
+        sendData(res, client_fd);
+    }
+    else {
+        string err = "-ERR unknown command\r\n";
+        send(client_fd, err.c_str(), err.size(), 0);
+    }
+}
 void handle_client(int client_fd) {
     try {
-        char buffer[1024];
+        char buffer[4096];
         string req;
         while (true) {
             memset(buffer, 0, sizeof(buffer));
@@ -524,61 +601,13 @@ void handle_client(int client_fd) {
                 continue;
 
             try {
-                if (req.find("PING") != string::npos) {
-                    string response = "+PONG\r\n";
-                    send(client_fd, response.c_str(), response.size(), 0);
+                vector<string> cmds = RESPArrayParser(req);
+                if (cmds.empty()) {
+                    string err = "-ERR empty command\r\n";
+                    send(client_fd, err.c_str(), err.size(), 0);
+                    req.clear();
+                    continue;
                 }
-                else {
-                    vector<string> cmds = RESPArrayParser(req);
-                    if (cmds.empty()) {
-                        string err = "-ERR empty command\r\n";
-                        send(client_fd, err.c_str(), err.size(), 0);
-                        req.clear();
-                        continue;
-                    }
-
-                    string cmd = cmds[0];
-                    if (cmd == "ECHO" && cmds.size() >= 2) {
-                        handleEcho(cmds[1], client_fd);
-                    }
-                    else if (cmd == "SET") {
-                        if (cmds.size() == 5)
-                            handleSet(cmds[1], cmds[2], client_fd, cmds[3],
-                                cmds[4]);
-                        else if (cmds.size() >= 3)
-                            handleSet(cmds[1], cmds[2], client_fd);
-                    }
-                    else if (cmd == "GET" && cmds.size() >= 2) {
-                        handleGet(cmds[1], client_fd);
-                    }
-                    else if (cmd == "TYPE" && cmds.size() >= 2) {
-                        handleType(cmds[1], client_fd);
-                    }
-                    else if (cmd == "XADD") {
-                        handleStreamAdd(cmds, client_fd);
-                    }
-                    else if (cmd == "XRANGE") {
-                        string res = handleXRange(cmds[1], cmds[2], cmds[3]);
-                        sendData(res, client_fd);
-                    }
-                    else if (cmd == "XREAD") {
-                        string res = handleXRead(cmds, client_fd);
-                        sendData(res, client_fd);
-                    }
-                    else if(cmd == "INCR"){
-                        string res = handleIncr(cmds[1]);
-                        sendData(res, client_fd);
-                    }
-                    else if(cmd == "MULTI"){
-                        string res = handleIncr(cmds[1]);
-                        sendData(res, client_fd);
-                    }
-                    else {
-                        string err = "-ERR unknown command\r\n";
-                        send(client_fd, err.c_str(), err.size(), 0);
-                    }
-                }
-
             }
             catch (const exception& e) {
                 string err = string("-ERR ") + e.what() + "\r\n";
