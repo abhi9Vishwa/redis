@@ -41,6 +41,28 @@ long long now_ms() {
         .count();
 }
 
+bool checkIsStrNum(const string& s){
+    int n = s.size();
+    int i =0;
+    while(s[i] == ' '){ i++ ;}
+    if (i == n) return false;
+
+    if(s[i] == '-' || s[i] =='+') i++;
+    if (i == n) return false;
+
+    bool hasDigit = false;
+    while (i < n && isdigit(s[i])) {
+        hasDigit = true;
+        i++;
+    }
+
+    // skip trailing spaces
+    while (i < n && s[i] == ' ') i++;
+
+    // valid only if all characters are processed and at least one digit found
+    return hasDigit && i == n;
+}
+
 pair<long long, long long> parseStreamId(const string& id, int end = 0) {
     size_t sepIdx = id.find('-');
     if (sepIdx == string::npos) {
@@ -466,6 +488,27 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
     return resp;
 }
 
+string handleIncr(string& key){
+    string resp ="";
+    lock_guard lock(store_mtx);
+
+    if(store.find(key) == store.end()){
+        store[key] = 1;
+    }
+    else{
+        if(checkIsStrNum(store[key])){
+            ll t = stoll(store[key]);
+            t += 1;
+            store[key] = to_string(t);
+        }
+        else {
+            return "-ERR value is not an integer or out of range";
+        }
+    }
+    resp = ":" + store[key] + "\r\n";
+    return resp;
+}
+
 void handle_client(int client_fd) {
     try {
         char buffer[1024];
@@ -520,6 +563,14 @@ void handle_client(int client_fd) {
                     }
                     else if (cmd == "XREAD") {
                         string res = handleXRead(cmds, client_fd);
+                        sendData(res, client_fd);
+                    }
+                    else if(cmd == "INCR"){
+                        string res = handleIncr(cmds[1]);
+                        sendData(res, client_fd);
+                    }
+                    else if(cmd == "MULTI"){
+                        string res = handleIncr(cmds[1]);
                         sendData(res, client_fd);
                     }
                     else {
