@@ -283,10 +283,13 @@ void handleStreamAdd(vector<string>& input, int& client_fd) {
         entry.id = to_string(na) + '-' + to_string(nb);
         vec.push_back(entry);
     }
-    if (streamCVs.find(streamId) != streamCVs.end())
-        streamCVs[streamId].notify_all();
     resp = "$" + to_string(entry.id.size()) + "\r\n" + entry.id + "\r\n";
     send(client_fd, resp.c_str(), resp.size(), 0);
+
+    if (streamCVs.find(streamId) != streamCVs.end()){
+        cout << "cond variable found" << endl;
+        streamCVs[streamId].notify_all();
+    }
 }
 
 string RESPEncodeStream(vector<StreamEntry>& vec) {
@@ -387,36 +390,41 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
         string streamId = streams[i];
         string startId = ids[i];
         vector<StreamEntry> rangeRes = {};
+        
         {
             // Call XRANGE-like helper to get entries newer than startId
             lock_guard lock(stream_mtx);
             rangeRes = getXRangeEntry(streamId, startId, "+");
         }
+        
         //check for existing entries
-
         if (blockMs != -1 && rangeRes.empty()) {
-            unique_lock lock(stream_mtx);
+            unique_lock ulock(stream_mtx);
 
             if (streamCVs.find(streamId) == streamCVs.end()) {
                 streamCVs[streamId];
             }
+
             bool gotNew = streamCVs[streamId].wait_for(
                 lock, chrono::milliseconds(blockMs), [&] {
                     if (!streamStore.count(streamId) || streamStore[streamId].empty())
                         return false;
                     auto lastIdPair = parseStreamId(streamStore[streamId].back().id);
-                    return lastIdPair > parseStreamId(startId);
+                    return lastIdPair >= parseStreamId(startId);
                 }
             );
+            
             if (gotNew) {
-                lock.unlock();
+                // Fetch only the NEW entries that arrived during blocking
                 rangeRes = getXRangeEntry(streamId, startId, "+");
+                ulock.unlock();
             }
             else {
-                lock.unlock();
+                ulock.unlock();
                 return "$-1\r\n";
             }
         }
+        
         if (rangeRes.empty()) continue;
 
         string rangeResp = RESPEncodeStream(rangeRes);
@@ -424,14 +432,16 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
         for (auto t : rangeRes) {
             cout << "id: " << t.id << endl;
             for (auto tf : t.fields) {
-                cout << "f1 " << tf.first << "f2 " << tf.second << endl;
+                cout << "f1 " << tf.first << " f2 " << tf.second << endl;
             }
         }
+        
         // Stream response = [streamName, entriesArray]
         resp += "*2\r\n";
         resp += "$" + to_string(streamId.size()) + "\r\n" + streamId + "\r\n";
         resp += rangeResp;
     }
+    
     if (resp == "*0\r\n")
         return "$-1\r\n";  // nothing found
     return resp;
