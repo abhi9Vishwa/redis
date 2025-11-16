@@ -394,6 +394,13 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
         {
             // Call XRANGE-like helper to get entries newer than startId
             lock_guard lock(stream_mtx);
+            if(startId == "$"){
+                if (streamStore.find(streamId) != streamStore.end() && !streamStore[streamId].empty()) {
+                    startId = streamStore[streamId].back().id;
+                } else {
+                    startId = "0-0"; // empty stream — start from nothing
+                }
+            }
             rangeRes = getXRangeEntry(streamId, startId, "+");
         }
         
@@ -404,16 +411,28 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
             if (streamCVs.find(streamId) == streamCVs.end()) {
                 streamCVs[streamId];
             }
-
-            bool gotNew = streamCVs[streamId].wait_for(
-                ulock, chrono::milliseconds(blockMs), [&] {
-                    if (!streamStore.count(streamId) || streamStore[streamId].empty())
+            bool gotNew = true;
+            if(blockMs == 0){
+                streamCVs[streamId].wait(
+                    ulock, [&] {
+                        if (!streamStore.count(streamId) || streamStore[streamId].empty())
                         return false;
-                    auto lastIdPair = parseStreamId(streamStore[streamId].back().id);
-                    return lastIdPair >= parseStreamId(startId);
-                }
-            );
-            
+                        auto lastIdPair = parseStreamId(streamStore[streamId].back().id);
+                        return lastIdPair > parseStreamId(startId);
+                    }
+                );
+            }
+            else{
+                bool gotNew = streamCVs[streamId].wait_for(
+                    ulock, chrono::milliseconds(blockMs), [&] {
+                        if (!streamStore.count(streamId) || streamStore[streamId].empty())
+                        return false;
+                        auto lastIdPair = parseStreamId(streamStore[streamId].back().id);
+                        return lastIdPair > parseStreamId(startId);
+                    }
+                );
+                
+            }
             if (gotNew) {
                 // Fetch only the NEW entries that arrived during blocking
                 rangeRes = getXRangeEntry(streamId, startId, "+");
