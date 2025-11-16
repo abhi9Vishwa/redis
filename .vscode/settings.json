@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.sql": "jinja-sql",
+        "*.yml": "jinja-yaml",
+        "string": "cpp",
+        "chrono": "cpp"
+    }
+}

@@ -406,7 +406,7 @@ string handleXRead(vector<string>& cmd, int& client_fd) {
             }
 
             bool gotNew = streamCVs[streamId].wait_for(
-                lock, chrono::milliseconds(blockMs), [&] {
+                ulock, chrono::milliseconds(blockMs), [&] {
                     if (!streamStore.count(streamId) || streamStore[streamId].empty())
                         return false;
                     auto lastIdPair = parseStreamId(streamStore[streamId].back().id);
