@@ -11,6 +11,10 @@
 #include <iostream>
 #include <string>
 
+#include "infoClass.hpp"
+#include "helperFunc.hpp"
+#include "handleCmds.hpp"
+
 using namespace std;
 
 using ll = long long;
@@ -140,12 +144,12 @@ vector<string> RESPArrayParser(string& rawInput) {
     return result;
 }
 
-string RESPBulkStringEncoder(string str) {
-    if (str == "")
-        return "$-1\r\n";
-    size_t len = str.size();
-    return ("$" + to_string(len) + "\r\n" + str + "\r\n");
-}
+// string RESPBulkStringEncoder(string str) {
+//     if (str == "")
+//         return "$-1\r\n";
+//     size_t len = str.size();
+//     return ("$" + to_string(len) + "\r\n" + str + "\r\n");
+// }
 
 string handleEcho(string& str) {
     return str;
@@ -509,18 +513,18 @@ string handleIncr(string& key) {
 
 void processCmds(vector<string>& cmds, int& client_fd);
 
-void handleExec(int& client_fd){
+void handleExec(int& client_fd) {
     // TODO: Solve the bug in the response. Response spill over to next command.
     // TODO: Return response as single RESP array rather than individual strings  
     string resp;
-    if(multiQueue.count(client_fd) == 0) {
+    if (multiQueue.count(client_fd) == 0) {
         resp = "-ERR EXEC without MULTI";
         sendData(resp, client_fd);
     }
-    else{
-        if(multiQueue[client_fd].size() == 0){
-             resp = "*0\r\n";
-             sendData(resp, client_fd);
+    else {
+        if (multiQueue[client_fd].size() == 0) {
+            resp = "*0\r\n";
+            sendData(resp, client_fd);
         }
         while (!multiQueue[client_fd].empty()) {
             vector<string> cmds = multiQueue[client_fd].front();
@@ -538,7 +542,7 @@ string handleMulti(int& client_fd) {
     bool execFlag = false;
 
     char buffer[4096];
-    if(multiQueue.find(client_fd) == multiQueue.end()) multiQueue[client_fd] = queue<vector<string>>();
+    if (multiQueue.find(client_fd) == multiQueue.end()) multiQueue[client_fd] = queue<vector<string>>();
     string req;
     while (true) {
         int bytes_recv = recv(client_fd, buffer, sizeof(buffer), 0);
@@ -552,20 +556,20 @@ string handleMulti(int& client_fd) {
             handleExec(client_fd);
             break;
         }
-        else if (cmds[0] == "DISCARD"){
-            if(multiQueue.find(client_fd) == multiQueue.end()) {
+        else if (cmds[0] == "DISCARD") {
+            if (multiQueue.find(client_fd) == multiQueue.end()) {
                 string resp = "-ERR DISCARD without MULTI";
                 sendData(resp, client_fd);
             }
-            else{
+            else {
                 multiQueue.erase(client_fd);
-                string qres ="+OK\r\n";
+                string qres = "+OK\r\n";
                 sendData(qres, client_fd);
             }
         }
         else {
             multiQueue[client_fd].push(cmds);
-            string qres =RESPBulkStringEncoder("QUEUED");
+            string qres = RESPBulkStringEncoder("QUEUED");
             sendData(qres, client_fd);
         }
         req.clear();
@@ -628,10 +632,15 @@ void processCmds(vector<string>& cmds, int& client_fd) {
         // sendData(res, client_fd);
     }
     else if (cmd == "EXEC") {
-        cout<<"second exec"<<endl;
+        cout << "second exec" << endl;
         string res = handleMulti(client_fd);
         // sendData(res, client_fd);
     }
+    // else if (cmd == "INFO") {
+    //     if (cmds[1] == "replication") {
+    //         string res = handleInfo(client_fd);
+    //     }
+    // }
     else {
         string err = "-ERR unknown command\r\n";
         send(client_fd, err.c_str(), err.size(), 0);
@@ -677,6 +686,7 @@ void handle_client(int client_fd) {
 }
 int main(int argc, char** argv) {
     signal(SIGINT, handle_sigint);
+    int port = 6379;
     // Flush after every std::cout / std::cerr
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
@@ -685,9 +695,19 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to create server socket\n";
         return 1;
     }
+    // string portIn = argv[1];
+    // // get Port number 
+    // if (argc == 3 && portIn == "--port") {
+    //     try {
+    //         port = stoi(argv[2]);
+    //     }
+    //     catch (const std::exception& e) {
+    //         cerr << "Invalid port provided" << endl;
+    //         std::cerr << e.what() << '\n';
+    //     }
+    // }
 
-    // Since the tester restarts your program quite often, setting SO_REUSEADDR
-    // ensures that we don't run into 'Address already in use' errors
+
     int reuse = 1;
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
         0) {
@@ -698,11 +718,11 @@ int main(int argc, char** argv) {
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(6379);
+    server_addr.sin_port = htons(port);
 
     if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) !=
         0) {
-        std::cerr << "Failed to bind to port 6379\n";
+        std::cerr << "Failed to bind to port " << port << "\n";
         return 1;
     }
 
