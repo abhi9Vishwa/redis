@@ -3,35 +3,40 @@ import threading
 import time
 
 
-def send_resp_command(host: str, port: int, command: list[str], delay: float = 0.0):
-    """Send a single RESP command and exit once a response is received."""
-    if delay:
-        time.sleep(delay)
-
-    # Encode command in RESP format
+def encode_resp_command(command: list[str]) -> bytes:
+    """Encode a command list into RESP format."""
     resp = f"*{len(command)}\r\n"
     for arg in command:
         resp += f"${len(arg)}\r\n{arg}\r\n"
+    return resp.encode()
 
+
+def send_multiple_commands(host: str, port: int, commands: list[list[str]], delay_between: float = 0.0):
+    """Send multiple commands over one persistent connection."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(15)  # Prevent infinite blocking if server never responds
+            s.settimeout(2)
             s.connect((host, port))
-            s.sendall(resp.encode())
+            print(f"[{threading.current_thread().name}] Connected to Redis")
 
-            # Wait for the first full response (blocking read)
-            response = b""
-            try:
-                chunk = s.recv(4096)
-                response += chunk
-            except socket.timeout:
-                print(f"[{threading.current_thread().name}] Timeout waiting for response")
-                return
+            for cmd in commands:
+                # Encode and send
+                resp = encode_resp_command(cmd)
+                s.sendall(resp)
+                print(f"[{threading.current_thread().name}] Sent: {' '.join(cmd)}")
 
-            if response:
-                print(f"[{threading.current_thread().name}] Server response:\n{response.decode(errors='ignore')}")
-            else:
-                print(f"[{threading.current_thread().name}] No response received")
+                # Wait for response (may block if command is blocking)
+                try:
+                    response = s.recv(4096)
+                    if not response:
+                        print(f"[{threading.current_thread().name}] Connection closed by server")
+                        break
+                    print(f"[{threading.current_thread().name}] Response:\n{response.decode(errors='ignore')}")
+                except socket.timeout:
+                    print(f"[{threading.current_thread().name}] Timeout waiting for response to {' '.join(cmd)}")
+
+                if delay_between:
+                    time.sleep(delay_between)
 
     except Exception as e:
         print(f"[{threading.current_thread().name}] Error: {e}")
@@ -41,30 +46,54 @@ def run_multithreaded_tests():
     host, port = "127.0.0.1", 6379
     threads = []
 
-    # Thread 1: XREAD BLOCK waits for messages
+    # Thread 1: Persistent client that does XREAD BLOCK + XREAD again
+    t1_cmds = [
+        ["XREAD", "BLOCK", "10000", "STREAMS", "mystream", "$"],
+        ["PING"],
+        ["ECHO", "done"]
+    ]
     t1 = threading.Thread(
-        target=send_resp_command,
-        name="ReaderThread",
-        args=(host, port, ["XREAD", "BLOCK", "10000", "STREAMS", "mystream11", "1"]),
+        target=send_multiple_commands,
+        name="ReaderClient",
+        args=(host, port, t1_cmds),
+        kwargs={"delay_between": 2.0},
     )
-    threads.append(t1)
 
-    # Thread 2: XADD after 2 seconds
+    # Thread 2: Another client that writes data periodically
+    t2_cmds = [
+        ["XADD", "mystream", "*", "field1", "value1"],
+        ["XADD", "mystream", "*", "field2", "value2"],
+        ["XADD", "mystream", "*", "field3", "value3"]
+    ]
     t2 = threading.Thread(
-        target=send_resp_command,
-        name="Writer1",
-        args=(host, port, ["XADD", "mystream11", "1-*", "field1", "value1"]),
-        kwargs={"delay": 2.0},
+        target=send_multiple_commands,
+        name="WriterClient",
+        args=(host, port, t2_cmds),
+        kwargs={"delay_between": 2.0},
     )
-    threads.append(t2)
 
-    # Thread 3: Another XADD after 4 seconds
+    # Thread 3: Simple client that sends a mix of normal commands
+    t3_cmds = [
+        ["MULTI"],
+        ["SET", "foo", "bar"],
+        # ["INCR", "counter"],
+        # ["INCR", "counter"],
+        ["GET", "foo"],
+        ["GET", "foo33"],
+        ["INCR", "foo"],
+        # ["GET", "foo"],
+        ["EXEC"],
+        ["ECHO", "test"]
+
+    ]
     t3 = threading.Thread(
-        target=send_resp_command,
-        name="Writer2",
-        args=(host, port, ["XADD", "mystream11", "1-*", "field2", "value2"]),
-        kwargs={"delay": 8.0},
+        target=send_multiple_commands,
+        name="BasicClient",
+        args=(host, port, t3_cmds),
+        kwargs={"delay_between": 1.0},
     )
+    # threads.append(t1)
+    # threads.append(t2)
     threads.append(t3)
 
     for t in threads:
