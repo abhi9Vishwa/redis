@@ -10,6 +10,7 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+
 using namespace std;
 
 using ll = long long;
@@ -536,10 +537,9 @@ string handleMulti(int& client_fd) {
     bool execFlag = false;
 
     char buffer[4096];
-    multiQueue[client_fd] = queue<vector<string>>();
+    if(multiQueue.find(client_fd) == multiQueue.end()) multiQueue[client_fd] = queue<vector<string>>();
     string req;
     while (true) {
-        memset(buffer, 0, sizeof(buffer));
         int bytes_recv = recv(client_fd, buffer, sizeof(buffer), 0);
         if (bytes_recv <= 0)
             break;
@@ -547,14 +547,25 @@ string handleMulti(int& client_fd) {
         req.append(buffer, bytes_recv);
         vector<string> cmds = RESPArrayParser(req);
         cout << cmds[0] << endl;
-        if (cmds[0] != "EXEC") {
+        if (cmds[0] == "EXEC") {
+            handleExec(client_fd);
+            break;
+        }
+        else if (cmds[0] == "DISCARD"){
+            if(multiQueue.find(client_fd) == multiQueue.end()) {
+                string resp = "-ERR DISCARD without MULTI";
+                sendData(resp, client_fd);
+            }
+            else{
+                multiQueue.erase(client_fd);
+                string qres ="+OK\r\n";
+                sendData(qres, client_fd);
+            }
+        }
+        else {
             multiQueue[client_fd].push(cmds);
             string qres =RESPBulkStringEncoder("QUEUED");
             sendData(qres, client_fd);
-        }
-        else {
-            handleExec(client_fd);
-            break;
         }
         req.clear();
     }
