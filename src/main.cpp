@@ -509,10 +509,17 @@ string handleIncr(string& key) {
 void processCmds(vector<string>& cmds, int& client_fd);
 
 void handleExec(int& client_fd){
+    // TODO: Solve the bug in the response. Response spill over to next command.
+    string resp;
     if(multiQueue.count(client_fd) == 0) {
-        string resp = "-ERR EXEC without MULTI";
+        resp = "-ERR EXEC without MULTI";
+        sendData(resp, client_fd);
     }
     else{
+        if(multiQueue[client_fd].size() == 0){
+             resp = "*0\r\n";
+             sendData(resp, client_fd);
+        }
         while (!multiQueue[client_fd].empty()) {
             vector<string> cmds = multiQueue[client_fd].front();
             multiQueue[client_fd].pop();
@@ -529,6 +536,7 @@ string handleMulti(int& client_fd) {
     bool execFlag = false;
 
     char buffer[4096];
+    multiQueue[client_fd] = queue<vector<string>>();
     string req;
     while (true) {
         memset(buffer, 0, sizeof(buffer));
