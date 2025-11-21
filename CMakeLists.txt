@@ -1,16 +1,26 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.16)
+project(redis_server CXX)
 
-project(redis-starter-cpp)
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-file(GLOB_RECURSE SOURCE_FILES src/*.cpp)
+# Root source directory
+set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
 
-set(CMAKE_CXX_STANDARD 23) # Enable the C++23 standard
-set(THREADS_PREFER_PTHREAD_FLAG ON)
+# Automatically collect all .cpp files in src and its subdirectories
+file(GLOB_RECURSE SOURCES
+    "${SRC_DIR}/*.cpp"
+)
 
-find_package(Threads REQUIRED)
-find_package(asio CONFIG REQUIRED)
+# Add include directory
+include_directories("${SRC_DIR}/include")
 
-add_executable(redis ${SOURCE_FILES})
+# Create executable
+add_executable(redis_server ${SOURCES})
 
-target_link_libraries(redis PRIVATE asio asio::asio)
-target_link_libraries(redis PRIVATE Threads::Threads)
+# Optional: more strict warnings for development
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
+    CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(redis_server PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-sign-compare -Wno-unused-variable) 
+endif()
