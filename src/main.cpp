@@ -511,6 +511,7 @@ void processCmds(vector<string>& cmds, int& client_fd);
 
 void handleExec(int& client_fd){
     // TODO: Solve the bug in the response. Response spill over to next command.
+    // TODO: Return response as single RESP array rather than individual strings  
     string resp;
     if(multiQueue.count(client_fd) == 0) {
         resp = "-ERR EXEC without MULTI";
