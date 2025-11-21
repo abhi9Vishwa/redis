@@ -506,10 +506,26 @@ string handleIncr(string& key) {
     return resp;
 }
 
+void processCmds(vector<string>& cmds, int& client_fd);
+
+void handleExec(int& client_fd){
+    if(multiQueue.count(client_fd) == 0) {
+        string resp = "-ERR EXEC without MULTI";
+    }
+    else{
+        while (!multiQueue[client_fd].empty()) {
+            vector<string> cmds = multiQueue[client_fd].front();
+            multiQueue[client_fd].pop();
+            processCmds(cmds, client_fd);
+        }
+        multiQueue.erase(client_fd);
+    }
+}
+
 string handleMulti(int& client_fd) {
     string resp = "";
     resp += "+OK\r\n";
-
+    sendData(resp, client_fd);
     bool execFlag = false;
 
     char buffer[4096];
@@ -522,44 +538,58 @@ string handleMulti(int& client_fd) {
 
         req.append(buffer, bytes_recv);
         vector<string> cmds = RESPArrayParser(req);
+        cout << cmds[0] << endl;
         if (cmds[0] != "EXEC") {
             multiQueue[client_fd].push(cmds);
+            string qres =RESPBulkStringEncoder("QUEUED");
+            sendData(qres, client_fd);
         }
         else {
-            while (!multiQueue[client_fd].empty()) {
-                vector<string> cmds = multiQueue[client_fd].front();
-                multiQueue[client_fd].pop();
-                processCmds(cmds, client_fd);
-            }
-            multiQueue.erase(client_fd);
+            handleExec(client_fd);
+            break;
         }
+        req.clear();
     }
-    return resp;
+    cout << "Exit func" << endl;
+    return "";
 }
+
+
 
 void processCmds(vector<string>& cmds, int& client_fd) {
     string cmd = cmds[0];
+    cout << "Process: " << cmd << endl;
     if (cmd == "PING") {
-        string response = "+PONG\r\n";
-        send(client_fd, response.c_str(), response.size(), 0);
+        string res = "+PONG\r\n";
+        sendData(res, client_fd);
+
     }
     else if (cmd == "ECHO" && cmds.size() >= 2) {
-        handleEcho(cmds[1]);
+        string res = handleEcho(cmds[1]);
+        sendData(res, client_fd);
+
     }
     else if (cmd == "SET") {
-        if (cmds.size() == 5)
-            handleSet(cmds[1], cmds[2], cmds[3], cmds[4]);
-        else if (cmds.size() >= 3)
-            handleSet(cmds[1], cmds[2]);
+        if (cmds.size() == 5) {
+            string res = handleSet(cmds[1], cmds[2], cmds[3], cmds[4]);
+            sendData(res, client_fd);
+        }
+        else if (cmds.size() >= 3) {
+            string res = handleSet(cmds[1], cmds[2]);
+            sendData(res, client_fd);
+        }
     }
     else if (cmd == "GET" && cmds.size() >= 2) {
-        handleGet(cmds[1]);
+        string res = handleGet(cmds[1]);
+        sendData(res, client_fd);
     }
     else if (cmd == "TYPE" && cmds.size() >= 2) {
-        handleType(cmds[1]);
+        string res = handleType(cmds[1]);
+        sendData(res, client_fd);
     }
     else if (cmd == "XADD") {
-        handleStreamAdd(cmds);
+        string res = handleStreamAdd(cmds);
+        sendData(res, client_fd);
     }
     else if (cmd == "XRANGE") {
         string res = handleXRange(cmds[1], cmds[2], cmds[3]);
@@ -575,17 +605,19 @@ void processCmds(vector<string>& cmds, int& client_fd) {
     }
     else if (cmd == "MULTI") {
         string res = handleMulti(client_fd);
-        sendData(res, client_fd);
+        // sendData(res, client_fd);
     }
     else if (cmd == "EXEC") {
+        cout<<"second exec"<<endl;
         string res = handleMulti(client_fd);
-        sendData(res, client_fd);
+        // sendData(res, client_fd);
     }
     else {
         string err = "-ERR unknown command\r\n";
         send(client_fd, err.c_str(), err.size(), 0);
     }
 }
+
 void handle_client(int client_fd) {
     try {
         char buffer[4096];
@@ -608,6 +640,7 @@ void handle_client(int client_fd) {
                     req.clear();
                     continue;
                 }
+                processCmds(cmds, client_fd);
             }
             catch (const exception& e) {
                 string err = string("-ERR ") + e.what() + "\r\n";
