@@ -45,6 +45,7 @@ int tcpConnToMaster(std::string& mHost, int& mPort)
     return sockfd;
 }
 
+
 void performHandshake(int& fd, int& repPort)
 {
     //Send Ping
@@ -62,5 +63,19 @@ void performHandshake(int& fd, int& repPort)
 
     data = "*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n";
     send(fd, data.c_str(), data.size(), 0);
-    recvData(fd);
+    std::string resp = recvData(fd);
+    std::stringstream ss(resp);
+    std::string cmd;
+    std::string masterReplId;
+    int masterOffset;
+
+    ss>> cmd>>masterReplId>>masterOffset;
+    std::cout<< cmd << masterReplId << masterOffset;
+    while (true)
+    {
+        recvData(fd);
+        sleep(1);
+    }
+    
+    
 }

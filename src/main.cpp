@@ -116,45 +116,6 @@ void sendData(string& resp, int& client_fd) {
     send(client_fd, resp.c_str(), resp.size(), 0);
 }
 
-vector<string> RESPArrayParser(string& rawInput) {
-    size_t pos = 0;
-    if (rawInput[pos] != '*')
-        throw runtime_error("Invalid RESP: missing array prefix '*'");
-
-    // Parse array length
-    size_t end = rawInput.find("\r\n", pos);
-    if (end == string::npos)
-        throw runtime_error("Invalid RESP: no CRLF after array header");
-    int arraySize = stoi(rawInput.substr(1, end - 1));
-    pos = end + 2;
-
-    vector<string> result;
-    for (int i = 0; i < arraySize; i++) {
-        if (rawInput[pos] != '$')
-            throw runtime_error("Invalid RESP: missing bulk string prefix '$'");
-
-        end = rawInput.find("\r\n", pos);
-        if (end == string::npos)
-            throw runtime_error("Invalid RESP: no CRLF after length");
-        int strLen = stoi(rawInput.substr(pos + 1, end - pos - 1));
-        pos = end + 2;
-
-        // Extract string of given length
-        string value = rawInput.substr(pos, strLen);
-        result.push_back(value);
-        pos += strLen + 2;	// skip string and its CRLF
-    }
-
-    return result;
-}
-
-// string RESPBulkStringEncoder(string str) {
-//     if (str == "")
-//         return "$-1\r\n";
-//     size_t len = str.size();
-//     return ("$" + to_string(len) + "\r\n" + str + "\r\n");
-// }
-
 string handleEcho(string& str) {
     return str;
 }
@@ -655,6 +616,12 @@ void processCmds(vector<string>& cmds, int& client_fd) {
     else if (cmd == "PSYNC") {
         string res = handlePSync(client_fd, redisInfo);
         sendData(res, client_fd);
+        vector<uint8_t> rdb = getEmptyRdb();
+        int rdbLen = rdb.size();
+        string lenStr = to_string(rdbLen);
+        string header = RESPBulkStringEncoder(lenStr);
+        sendData(header, client_fd);
+        send(client_fd, rdb.data(), rdb.size(), 0);
     }
     else {
         string err = "-ERR unknown command\r\n";

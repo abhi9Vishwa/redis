@@ -11,5 +11,8 @@
 // Bulk encode string
 std::string RESPBulkStringEncoder(std::string str);
 
-void recvData(int& fd);
+std::string recvData(int& fd);
 
+std::vector<std::string> RESPArrayParser(std::string& rawInput);
+
+std::vector<uint8_t> getEmptyRdb();

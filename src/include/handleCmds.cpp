@@ -24,6 +24,8 @@ std::string handleReplConf(int& fd)
 std::string handlePSync(int& fd, RedisInfo& redisInfo)
 {
 
-    std::string resp = "+FULLRESYNC " + redisInfo.getReplId() + " 0\r\n";
+    std::string resp = "+FULLRESYNC " + redisInfo.getReplId() + " "+ std::to_string(redisInfo.getReplOffset()) +"\r\n";
     return resp;
 }
+
+
