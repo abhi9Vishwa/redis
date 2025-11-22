@@ -20,6 +20,9 @@ using namespace std;
 using ll = long long;
 
 int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+string role = "master";
+RedisInfo redisInfo(role);
+
 
 struct StreamEntry {
     string id;
@@ -636,11 +639,14 @@ void processCmds(vector<string>& cmds, int& client_fd) {
         string res = handleMulti(client_fd);
         // sendData(res, client_fd);
     }
-    // else if (cmd == "INFO") {
-    //     if (cmds[1] == "replication") {
-    //         string res = handleInfo(client_fd);
-    //     }
-    // }
+    else if (cmd == "INFO") {
+        string res = "";
+        if (cmds[1] == "replication") {
+             res = handleInfo(client_fd, redisInfo);
+        }
+        else res = "_ERR Invalid command for info";
+        sendData(res, client_fd); 
+    }
     else {
         string err = "-ERR unknown command\r\n";
         send(client_fd, err.c_str(), err.size(), 0);
@@ -695,18 +701,32 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to create server socket\n";
         return 1;
     }
-    // string portIn = argv[1];
-    // // get Port number 
-    // if (argc == 3 && portIn == "--port") {
-    //     try {
-    //         port = stoi(argv[2]);
-    //     }
-    //     catch (const std::exception& e) {
-    //         cerr << "Invalid port provided" << endl;
-    //         std::cerr << e.what() << '\n';
-    //     }
-    // }
+    
+    
 
+    // get Port number 
+    if (argc >= 3) {
+        string portFlag = argv[1];
+        if(portFlag == "-p" || portFlag == "--port"){
+            try {
+                port = stoi(argv[2]);
+            }
+            catch (const std::exception& e) {
+                cerr << "Invalid port provided" << endl;
+                std::cerr << e.what() << '\n';
+            }
+        }
+    }
+
+    if(argc == 5){
+        string isReplica = argv[3];
+        string masterNode = argv[4];
+
+        if(isReplica == "--replicaof") {
+            role= "slave";
+            redisInfo.setRole(role);
+        }
+    }
 
     int reuse = 1;
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
@@ -734,7 +754,7 @@ int main(int argc, char** argv) {
 
     struct sockaddr_in client_addr;
     int client_addr_len = sizeof(client_addr);
-    std::cout << "Waiting for a client to connect...\n";
+    std::cout << "Waiting for a client to connect on port: " << port << "\n";
 
     // You can use print statements as follows for debugging, they'll be visible
     // when running tests.

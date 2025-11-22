@@ -1047,3 +1047,5 @@ dkms.conf
 vcpkg_installed
 .env
 .editorconfig
+.vscode/settings.json
+.vscode/settings.json

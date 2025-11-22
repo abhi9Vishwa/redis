@@ -12,7 +12,9 @@ private:
     std::string master_replid;
 public:
     RedisInfo(std::string &role);
+    RedisInfo();
     ~RedisInfo();
     std::string getRole();
     std::string getReplId();
+    void setRole(std::string& role);
 };

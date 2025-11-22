@@ -7,6 +7,15 @@
 
 using namespace std;
 
+RedisInfo::RedisInfo(){
+    this->role = "not initialized yet";
+    boost::uuids::random_generator gen;
+    boost::uuids::uuid id = gen();
+    std::string s = boost::uuids::to_string(id);
+
+    this->master_replid = s;
+}
+
 RedisInfo::RedisInfo(std::string & role)
 {
     this->role = role;
@@ -29,4 +38,8 @@ std::string RedisInfo::getRole()
 std::string RedisInfo::getReplId()
 {
     return this->master_replid;
+}
+
+void RedisInfo::setRole(std::string& role){
+    this->role = role;
 }
