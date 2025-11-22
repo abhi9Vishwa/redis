@@ -643,13 +643,17 @@ void processCmds(vector<string>& cmds, int& client_fd) {
     else if (cmd == "INFO") {
         string res = "";
         if (cmds[1] == "replication") {
-             res = handleInfo(client_fd, redisInfo);
+            res = handleInfo(client_fd, redisInfo);
         }
         else res = "_ERR Invalid command for info";
-        sendData(res, client_fd); 
+        sendData(res, client_fd);
     }
-    else if(cmd == "REPLCONF"){
+    else if (cmd == "REPLCONF") {
         string res = handleReplConf(client_fd);
+        sendData(res, client_fd);
+    }
+    else if (cmd == "PSYNC") {
+        string res = handlePSync(client_fd, redisInfo);
         sendData(res, client_fd);
     }
     else {
@@ -706,13 +710,13 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to create server socket\n";
         return 1;
     }
-    
-    
+
+
 
     // get Port number 
     if (argc >= 3) {
         string portFlag = argv[1];
-        if(portFlag == "-p" || portFlag == "--port"){
+        if (portFlag == "-p" || portFlag == "--port") {
             try {
                 port = stoi(argv[2]);
             }
@@ -725,17 +729,17 @@ int main(int argc, char** argv) {
     bool isReplicaFlag = false;
     string masterHost;
     int masterPort;
-    if(argc == 5){
+    if (argc == 5) {
         string isReplica = argv[3];
         string masterNode = argv[4];
-        if(isReplica == "--replicaof") {
+        if (isReplica == "--replicaof") {
             isReplicaFlag = true;
-            role= "slave";
+            role = "slave";
             redisInfo.setRole(role);
             string masterNode = argv[4];
 
             stringstream ss(masterNode);
-            ss>>masterHost >> masterPort;
+            ss >> masterHost >> masterPort;
             redisInfo.setMasterHost(masterHost);
             redisInfo.setMasterPort(masterPort);
         }
@@ -761,22 +765,22 @@ int main(int argc, char** argv) {
     }
 
     // If server is a replica then connect to master server
-    if(isReplicaFlag){
-        thread([&](){
+    if (isReplicaFlag) {
+        thread([&]() {
             int fd = -1;
-            while(true){
+            while (true) {
                 fd = tcpConnToMaster(masterHost, masterPort);
-                if(fd >= 0 ){
-                    cout << "Connected to master" << masterHost << ":"<< masterPort << endl;
+                if (fd >= 0) {
+                    cout << "Connected to master" << masterHost << ":" << masterPort << endl;
                     performHandshake(fd, port);
                     break;
                 }
-                cerr<<"Retrying master connection in 1 second...\n";
+                cerr << "Retrying master connection in 1 second...\n";
                 this_thread::sleep_for(chrono::seconds(1));
             }
             // Handle handshake
             close(fd);
-        }).detach();
+            }).detach();
     }
 
     int connection_backlog = 5;

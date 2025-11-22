@@ -20,3 +20,10 @@ std::string handleReplConf(int& fd)
     std::string resp = "+OK\r\n";
     return resp;
 }
+
+std::string handlePSync(int& fd, RedisInfo& redisInfo)
+{
+
+    std::string resp = "+FULLRESYNC " + redisInfo.getReplId() + " 0\r\n";
+    return resp;
+}

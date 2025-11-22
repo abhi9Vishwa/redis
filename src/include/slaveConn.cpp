@@ -29,10 +29,10 @@ int tcpConnToMaster(std::string& mHost, int& mPort)
     memset(&serv_addr, 0, sizeof(serv_addr));
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port   = htons(mPort);
+    serv_addr.sin_port = htons(mPort);
     memcpy(&serv_addr.sin_addr.s_addr,
-           server->h_addr,
-           server->h_length);
+        server->h_addr,
+        server->h_length);
 
     // Step 4: Connect
     if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -49,14 +49,18 @@ void performHandshake(int& fd, int& repPort)
 {
     //Send Ping
     std::string data = "*1\r\n$4\r\nPING\r\n";
-    send(fd, data.c_str(), data.size(),0);
+    send(fd, data.c_str(), data.size(), 0);
     recvData(fd);
     // Send REPLCONF
-    data = "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n"+ std::to_string(repPort) + "\r\n";
-    send(fd, data.c_str(), data.size(),0);
+    data = "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n" + std::to_string(repPort) + "\r\n";
+    send(fd, data.c_str(), data.size(), 0);
     recvData(fd);
-    
+
     data = "*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n";
-    send(fd, data.c_str(), data.size(),0);
+    send(fd, data.c_str(), data.size(), 0);
+    recvData(fd);
+
+    data = "*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n";
+    send(fd, data.c_str(), data.size(), 0);
     recvData(fd);
 }
