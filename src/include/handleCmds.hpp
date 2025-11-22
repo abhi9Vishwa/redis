@@ -5,3 +5,5 @@
 #include "helperFunc.hpp"
 
 std::string handleInfo(int &client_fd, RedisInfo& redisInfo);
+
+std::string handleReplConf(int& fd);

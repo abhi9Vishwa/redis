@@ -1,4 +1,6 @@
 #include "slaveConn.hpp"
+#include "helperFunc.hpp"
+
 #include <arpa/inet.h>
 #include <bits/stdc++.h>
 #include <netdb.h>
@@ -43,9 +45,18 @@ int tcpConnToMaster(std::string& mHost, int& mPort)
     return sockfd;
 }
 
-void performHandshake(int& fd)
+void performHandshake(int& fd, int& repPort)
 {
     //Send Ping
     std::string data = "*1\r\n$4\r\nPING\r\n";
     send(fd, data.c_str(), data.size(),0);
+    recvData(fd);
+    // Send REPLCONF
+    data = "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n"+ std::to_string(repPort) + "\r\n";
+    send(fd, data.c_str(), data.size(),0);
+    recvData(fd);
+    
+    data = "*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n";
+    send(fd, data.c_str(), data.size(),0);
+    recvData(fd);
 }

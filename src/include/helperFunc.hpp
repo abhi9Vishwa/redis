@@ -11,3 +11,5 @@
 // Bulk encode string
 std::string RESPBulkStringEncoder(std::string str);
 
+void recvData(int& fd);
+

@@ -14,3 +14,9 @@ std::string handleInfo(int& client_fd, RedisInfo& redisInfo)
     std::string res = RESPBulkStringEncoder(data);
     return res;
 }
+
+std::string handleReplConf(int& fd)
+{
+    std::string resp = "+OK\r\n";
+    return resp;
+}

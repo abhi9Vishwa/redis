@@ -648,6 +648,10 @@ void processCmds(vector<string>& cmds, int& client_fd) {
         else res = "_ERR Invalid command for info";
         sendData(res, client_fd); 
     }
+    else if(cmd == "REPLCONF"){
+        string res = handleReplConf(client_fd);
+        sendData(res, client_fd);
+    }
     else {
         string err = "-ERR unknown command\r\n";
         send(client_fd, err.c_str(), err.size(), 0);
@@ -759,19 +763,19 @@ int main(int argc, char** argv) {
     // If server is a replica then connect to master server
     if(isReplicaFlag){
         thread([&](){
+            int fd = -1;
             while(true){
-                int fd = tcpConnToMaster(masterHost, masterPort);
+                fd = tcpConnToMaster(masterHost, masterPort);
                 if(fd >= 0 ){
                     cout << "Connected to master" << masterHost << ":"<< masterPort << endl;
-                    
-                    // Handle handshake 
-                    performHandshake(fd);
-
-                    close(fd);
+                    performHandshake(fd, port);
+                    break;
                 }
                 cerr<<"Retrying master connection in 1 second...\n";
                 this_thread::sleep_for(chrono::seconds(1));
             }
+            // Handle handshake
+            close(fd);
         }).detach();
     }
 
