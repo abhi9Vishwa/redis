@@ -47,6 +47,26 @@ int RedisInfo::getReplOffset()
     return this->master_repl_offset;
 }
 
+std::string RedisInfo::getMasterHost()
+{
+    return this->getMasterHost();
+}
+
+int RedisInfo::getMasterPort()
+{
+    return this->getMasterPort();
+}
+
+void RedisInfo::setMasterHost(std::string& host)
+{
+    this->masterHost =host;
+}
+
+void RedisInfo::setMasterPort(int& port)
+{
+    this->masterPort = port;
+}
+
 void RedisInfo::setRole(std::string& role){
     this->role = role;
 }

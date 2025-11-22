@@ -10,7 +10,9 @@ class RedisInfo{
 private:
     std::string role;
     std::string master_replid;
-    int master_repl_offset;
+    long long master_repl_offset;
+    std::string masterHost;
+    int masterPort;
 public:
     RedisInfo(std::string &role);
     RedisInfo();
@@ -18,5 +20,9 @@ public:
     std::string getRole();
     std::string getReplId();
     int getReplOffset();
+    std::string getMasterHost(); 
+    int getMasterPort(); 
+    void setMasterHost(std::string& host); 
+    void setMasterPort(int& port); 
     void setRole(std::string& role);
 };

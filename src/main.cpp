@@ -1,5 +1,5 @@
-#include <arpa/inet.h>
 #include <bits/stdc++.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -14,6 +14,7 @@
 #include "infoClass.hpp"
 #include "helperFunc.hpp"
 #include "handleCmds.hpp"
+#include "slaveConn.hpp"
 
 using namespace std;
 
@@ -717,15 +718,24 @@ int main(int argc, char** argv) {
             }
         }
     }
-
+    bool isReplicaFlag = false;
+    string masterHost;
+    int masterPort;
     if(argc == 5){
         string isReplica = argv[3];
         string masterNode = argv[4];
-
         if(isReplica == "--replicaof") {
+            isReplicaFlag = true;
             role= "slave";
             redisInfo.setRole(role);
+            string masterNode = argv[4];
+
+            stringstream ss(masterNode);
+            ss>>masterHost >> masterPort;
+            redisInfo.setMasterHost(masterHost);
+            redisInfo.setMasterPort(masterPort);
         }
+
     }
 
     int reuse = 1;
@@ -744,6 +754,25 @@ int main(int argc, char** argv) {
         0) {
         std::cerr << "Failed to bind to port " << port << "\n";
         return 1;
+    }
+
+    // If server is a replica then connect to master server
+    if(isReplicaFlag){
+        thread([&](){
+            while(true){
+                int fd = tcpConnToMaster(masterHost, masterPort);
+                if(fd >= 0 ){
+                    cout << "Connected to master" << masterHost << ":"<< masterPort << endl;
+                    
+                    // Handle handshake 
+                    performHandshake(fd);
+
+                    close(fd);
+                }
+                cerr<<"Retrying master connection in 1 second...\n";
+                this_thread::sleep_for(chrono::seconds(1));
+            }
+        }).detach();
     }
 
     int connection_backlog = 5;
