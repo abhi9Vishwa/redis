@@ -10,6 +10,7 @@ std::string handleInfo(int& client_fd, RedisInfo& redisInfo)
     data += "Replication\n";
     data += "role:" + redisInfo.getRole() + "\n";
     data += "master_replid:" + redisInfo.getReplId() + "\n";
+    data += "master_repl_offset:" + std::to_string(redisInfo.getReplOffset()) + "\n";
     std::string res = RESPBulkStringEncoder(data);
     return res;
 }

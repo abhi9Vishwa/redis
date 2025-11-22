@@ -14,6 +14,7 @@ RedisInfo::RedisInfo(){
     std::string s = boost::uuids::to_string(id);
 
     this->master_replid = s;
+    this->master_repl_offset = 0;
 }
 
 RedisInfo::RedisInfo(std::string & role)
@@ -24,6 +25,7 @@ RedisInfo::RedisInfo(std::string & role)
     std::string s = boost::uuids::to_string(id);
 
     this->master_replid = s;
+    this->master_repl_offset = 0;
 }
 
 RedisInfo::~RedisInfo()
@@ -38,6 +40,11 @@ std::string RedisInfo::getRole()
 std::string RedisInfo::getReplId()
 {
     return this->master_replid;
+}
+
+int RedisInfo::getReplOffset()
+{
+    return this->master_repl_offset;
 }
 
 void RedisInfo::setRole(std::string& role){
