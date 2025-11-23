@@ -1,6 +1,59 @@
 #include "helperFunc.hpp"
 
 #include <bits/stdc++.h>  
+#include "dataStructs.hpp"
+
+using namespace std;
+
+long long now_ms() {
+    using namespace chrono;
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch())
+        .count();
+}
+
+
+bool checkIsStrNum(const string& s) {
+    int n = s.size();
+    int i = 0;
+    while (s[i] == ' ') { i++; }
+    if (i == n) return false;
+
+    if (s[i] == '-' || s[i] == '+') i++;
+    if (i == n) return false;
+
+    bool hasDigit = false;
+    while (i < n && isdigit(s[i])) {
+        hasDigit = true;
+        i++;
+    }
+
+    // skip trailing spaces
+    while (i < n && s[i] == ' ') i++;
+
+    // valid only if all characters are processed and at least one digit found
+    return hasDigit && i == n;
+}
+
+
+string RESPEncodeStream(vector<StreamEntry>& vec) {
+    if (vec.empty()) return "$-1\r\n";
+    string res;
+
+    size_t totSize = vec.size();
+    res = string("*") + to_string(totSize) + "\r\n";
+    res += string("*") + "2" + "\r\n";	// to account for StreamEntry
+
+    for (auto& i : vec) {
+        res += "$" + to_string(i.id.size()) + "\r\n" + i.id + "\r\n";
+        res += string("*") + to_string(i.fields.size() * 2) + "\r\n";
+        for (auto& j : i.fields) {
+            res += "$" + to_string(j.first.size()) + "\r\n" + j.first + "\r\n";
+            res +=
+                "$" + to_string(j.second.size()) + "\r\n" + j.second + "\r\n";
+        }
+    }
+    return res;
+}
 
 std::string RESPBulkStringEncoder(std::string str)
 {
@@ -96,3 +149,42 @@ std::vector<uint8_t> getEmptyRdb() {
 
 
 
+
+pair<long long, long long> parseStreamId(const string& id, int end) {
+    size_t sepIdx = id.find('-');
+    if (sepIdx == string::npos) {
+        if (end == 0)
+            return { stoll(id), 0 };
+        else
+            return { stoll(id), INT_MAX };
+    }
+    long long a = stoll(id.substr(0, sepIdx));
+    long long b = stoll(id.substr(sepIdx + 1));
+
+    return { a, b };
+}
+using ll = long long;
+
+int binarySearch(const string& target, const vector<StreamEntry>& vec) {
+    int l = 0;
+    int r = vec.size() - 1;
+
+    pair<ll, ll> tarPair = parseStreamId(target);
+
+    while (l <= r) {
+        int m = r - (l + r) / 2;
+
+        pair<ll, ll> mp = parseStreamId(vec[m].id);
+        if (mp == tarPair)
+            return m;
+        else if (mp < tarPair)
+            l = m + 1;
+        else
+            r = m - 1;
+    }
+    return l;
+}
+
+void sendData(string resp, int& client_fd) {
+    send(client_fd, resp.c_str(), resp.size(), 0);
+}

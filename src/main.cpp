@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <functional>
 
 #include <chrono>
 #include <cstdlib>
@@ -127,7 +128,7 @@ int main(int argc, char** argv) {
     while (true) {
         int client_fd = accept(server_fd, (sockaddr*)&client_addr, (socklen_t*)&client_addr_len);
         std::cout << "Client connected\n";
-        thread(handle_client, client_fd, redisDB, redisInfo).detach();
+        thread(handle_client, client_fd, std::ref(redisDB), std::ref(redisInfo)).detach();
     }
 
     close(server_fd);
