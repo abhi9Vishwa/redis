@@ -45,7 +45,6 @@ int tcpConnToMaster(std::string& mHost, int& mPort)
     return sockfd;
 }
 
-
 void performHandshake(int& fd, int& repPort)
 {
     //Send Ping
@@ -71,11 +70,6 @@ void performHandshake(int& fd, int& repPort)
 
     ss>> cmd>>masterReplId>>masterOffset;
     std::cout<< cmd << masterReplId << masterOffset;
-    while (true)
-    {
-        recvData(fd);
-        sleep(1);
-    }
-    
-    
+    recvData(fd);
 }
+

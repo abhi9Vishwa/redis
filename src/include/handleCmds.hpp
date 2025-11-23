@@ -8,5 +8,5 @@ std::string handleInfo(int& client_fd, RedisInfo& redisInfo);
 
 std::string handleReplConf(int& fd);
 
-std::string handlePSync(int& fd, RedisInfo& redisInfo);
+std::string handlePSync(int& fd, RedisAllData& redisdb, RedisInfo& redisInfo);
 

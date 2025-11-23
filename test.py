@@ -43,7 +43,7 @@ def send_multiple_commands(host: str, port: int, commands: list[list[str]], dela
 
 
 def run_multithreaded_tests():
-    host, port = "127.0.0.1", 6379
+    host, port = "127.0.0.1", 6380
     threads = []
 
     # Thread 1: Persistent client that does XREAD BLOCK + XREAD again
@@ -74,16 +74,16 @@ def run_multithreaded_tests():
 
     # Thread 3: Simple client that sends a mix of normal commands
     t3_cmds = [
-        ["INFO", "replication"],
-        ["SET", "foo", "bar"],
-        ["INCR", "counter"],
-        ["INCR", "counter"],
+        # ["INFO", "replication"],
+        # ["SET", "foo", "bar"],
+        # ["INCR", "counter"],
+        # ["INCR", "counter"],
+        # ["GET", "foo"],
+        ["GET", "counter"],
+        # ["INCR", "foo"],
         ["GET", "foo"],
-        ["GET", "foo33"],
-        ["INCR", "foo"],
-        ["GET", "foo"],
-        ["EXEC"],
-        ["ECHO", "test"]
+        # # ["EXEC"],
+        # ["ECHO", "test"]
 
     ]
     t3 = threading.Thread(
@@ -92,8 +92,8 @@ def run_multithreaded_tests():
         args=(host, port, t3_cmds),
         kwargs={"delay_between": 1.0},
     )
-    threads.append(t1)
-    threads.append(t2)
+    # threads.append(t1)
+    # threads.append(t2)
     threads.append(t3)
 
     for t in threads:

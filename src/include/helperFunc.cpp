@@ -185,6 +185,16 @@ int binarySearch(const string& target, const vector<StreamEntry>& vec) {
     return l;
 }
 
-void sendData(string resp, int& client_fd) {
-    send(client_fd, resp.c_str(), resp.size(), 0);
+size_t sendData(string resp, int& client_fd) {
+    size_t sent = send(client_fd, resp.c_str(), resp.size(), 0);
+    return sent;
+}
+
+bool isWriteCommand(const std::string& cmd) {
+    static unordered_set<string> writeCmds = {
+        "SET", "DEL", "XADD", "HSET", "LPUSH", "RPUSH", "INCR", "DECR", "MULTI", "EXEC"
+    };
+    string upper = cmd;
+    transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+    return writeCmds.count(upper);
 }

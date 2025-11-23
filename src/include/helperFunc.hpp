@@ -25,6 +25,8 @@ std::pair<long long, long long> parseStreamId(const std::string& id, int end = 0
 
 int binarySearch(const std::string& target, const std::vector<StreamEntry>& vec);
 
-void sendData(std::string resp, int& client_fd);
+size_t sendData(std::string resp, int& client_fd);
+
+bool isWriteCommand(const std::string& cmd);
 
 

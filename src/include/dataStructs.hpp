@@ -7,6 +7,10 @@ struct StreamEntry {
     std::unordered_map<std::string, std::string> fields;
 };
 
+struct ReplicaInfo {
+    int sock_fd;
+};
+
 struct RedisAllData {
     RedisAllData() = default;
 
@@ -26,6 +30,11 @@ struct RedisAllData {
 
     std::unordered_map<int, std::queue<std::vector<std::string>>> multiQueue;
     std::unordered_map<int, bool> inMulti;
+    
+    std::vector<ReplicaInfo> allReplicas;
+    std::mutex replicaMtx;
+
+    
     // to be implemented later
     std::unordered_map<std::string, std::vector<std::string>> listStore;
 };

@@ -5,4 +5,3 @@
 int tcpConnToMaster(std::string& mHost, int& mPort);
 
 void performHandshake(int& fd, int& repPort);
-

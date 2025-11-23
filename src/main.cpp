@@ -17,7 +17,7 @@
 #include "handleClient.hpp"
 #include "slaveConn.hpp"
 #include "dataStructs.hpp"
-
+#include "processCmds.hpp"
 
 using namespace std;
 
@@ -109,6 +109,18 @@ int main(int argc, char** argv) {
                 }
                 cerr << "Retrying master connection in 1 second...\n";
                 this_thread::sleep_for(chrono::seconds(1));
+            }
+            string buf;
+            char temp[4096];
+
+            while (true) {
+                int n = recv(fd, temp, sizeof(temp), 0);
+                if (n <= 0) break;
+                cout<<"stuck here";
+                buf.append(temp, n);
+                vector<string> cmds = RESPArrayParser(buf);
+                processCmds(cmds, fd, redisDB, redisInfo, true);
+                buf.clear();
             }
             // Handle handshake
             close(fd);

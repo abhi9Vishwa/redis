@@ -4,6 +4,14 @@
 #include "infoClass.hpp"
 #include "helperFunc.hpp"
 
+void addReplicaCreds(int& fd, std::vector<ReplicaInfo> & allReps, std::mutex & repMtx){
+    ReplicaInfo r = {fd};
+    {
+        std::lock_guard lock(repMtx);
+        allReps.push_back(r);
+    }
+}
+
 std::string handleInfo(int& client_fd, RedisInfo& redisInfo)
 {
     std::string data = "";
@@ -21,10 +29,10 @@ std::string handleReplConf(int& fd)
     return resp;
 }
 
-std::string handlePSync(int& fd, RedisInfo& redisInfo)
+std::string handlePSync(int& fd, RedisAllData& redisdb, RedisInfo& redisInfo)
 {
-
     std::string resp = "+FULLRESYNC " + redisInfo.getReplId() + " "+ std::to_string(redisInfo.getReplOffset()) +"\r\n";
+    addReplicaCreds(fd, redisdb.allReplicas, redisdb.replicaMtx);
     return resp;
 }
 

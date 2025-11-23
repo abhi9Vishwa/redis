@@ -28,11 +28,6 @@ std::string handleSet(std::string& key, std::string& val, unordered_map<string, 
     return resp;
 }
 
-std::string handleSet(std::string& key, std::string& val, std::unordered_map<std::string, std::string>& store, std::mutex& store_mtx, std::unordered_map<std::string, long long>& expiry)
-{
-    return std::string();
-}
-
 std::string handleGet(std::string& key, std::unordered_map<std::string, std::string>& store, std::mutex& store_mtx, std::unordered_map<std::string, long long>& expiry)
 {
     string resp = "";

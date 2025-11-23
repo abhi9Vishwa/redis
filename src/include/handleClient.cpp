@@ -3,6 +3,7 @@
 #include "infoClass.hpp"
 #include "processCmds.hpp"
 #include "helperFunc.hpp"
+#include "broadcastToRep.hpp"
 
 
 #include <bits/stdc++.h>
@@ -21,6 +22,7 @@ void handle_client(int client_fd, RedisAllData& redisDb, RedisInfo& redisInfo)
         char buffer[4096];
         string req;
         while (true) {
+            cout<<" this is the culprit" << endl;
             memset(buffer, 0, sizeof(buffer));
             int bytes_recv = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_recv <= 0)
@@ -38,7 +40,19 @@ void handle_client(int client_fd, RedisAllData& redisDb, RedisInfo& redisInfo)
                     req.clear();
                     continue;
                 }
-                processCmds(cmds, client_fd, redisDb, redisInfo);
+                if(redisInfo.getRole() == "master"){
+                    processCmds(cmds, client_fd, redisDb, redisInfo);
+                    if(isWriteCommand(cmds[0])){
+                        // send cmds to replicas in map
+                        replicateToReplicas(req, redisDb);
+                    }
+                }
+                else {
+                    if(!isWriteCommand(cmds[0])){
+                        processCmds(cmds, client_fd, redisDb, redisInfo);
+                    }
+                }
+                req.clear();
             }
             catch (const exception& e) {
                 string err = string("-ERR ") + e.what() + "\r\n";

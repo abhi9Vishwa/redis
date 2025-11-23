@@ -12,13 +12,7 @@ using namespace std;
 
 std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisAllData & redisDb, RedisInfo& redisInfo)
 {
-    std::unordered_map<std::string, std::vector<StreamEntry>> streamStore = redisDb.streamStore;
-    std::unordered_map<std::string, std::string> store = redisDb.store;
-    std::unordered_map<std::string, long long> expiry = redisDb.expiry;
-    std::unordered_map<std::string, std::vector<std::string>> listStore = redisDb.listStore;
-
     string res= " done";
-
     string cmd = cmds[0];
     cout << "Process: " << cmd << endl;
     if (cmd == "PING") {
@@ -31,31 +25,31 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
     }
     else if (cmd == "SET") {
         if (cmds.size() == 5) {
-            res = handleSet(cmds[1], cmds[2],store, redisDb.store_mtx, expiry, cmds[3], cmds[4]);
+            res = handleSet(cmds[1], cmds[2], redisDb.store, redisDb.store_mtx, redisDb.expiry, cmds[3], cmds[4]);
 
         }
         else if (cmds.size() >= 3) {
-            res = handleSet(cmds[1], cmds[2], store, redisDb.store_mtx, expiry);
+            res = handleSet(cmds[1], cmds[2], redisDb.store, redisDb.store_mtx, redisDb.expiry);
 
         }
     }
     else if (cmd == "GET" && cmds.size() >= 2) {
-        res = handleGet(cmds[1], store, redisDb.store_mtx, expiry);
+        res = handleGet(cmds[1], redisDb.store, redisDb.store_mtx, redisDb.expiry);
     }
     else if (cmd == "TYPE" && cmds.size() >= 2) {
-        res = handleType(cmds[1], store, listStore, streamStore);
+        res = handleType(cmds[1], redisDb.store, redisDb.listStore, redisDb.streamStore);
     }
     else if (cmd == "XADD") {
-        res = handleStreamAdd(cmds, redisDb.stream_mtx, streamStore, redisDb.streamCVs);
+        res = handleStreamAdd(cmds, redisDb.stream_mtx, redisDb.streamStore, redisDb.streamCVs);
     }
     else if (cmd == "XRANGE") {
-        res = handleXRange(cmds[1], cmds[2], cmds[3], redisDb.stream_mtx,streamStore);
+        res = handleXRange(cmds[1], cmds[2], cmds[3], redisDb.stream_mtx,redisDb.streamStore);
     }
     else if (cmd == "XREAD") {
-        res = handleXRead(cmds, redisDb.stream_mtx, streamStore, redisDb.streamCVs);
+        res = handleXRead(cmds, redisDb.stream_mtx, redisDb.streamStore, redisDb.streamCVs);
     }
     else if (cmd == "INCR") {
-        res = handleIncr(cmds[1], redisDb.store_mtx, store);
+        res = handleIncr(cmds[1], redisDb.store_mtx, redisDb.store);
     }
     else if (cmd == "INFO") {
         res = "";
@@ -68,7 +62,7 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         res = handleReplConf(client_fd);
     }
     else if (cmd == "PSYNC") {
-        res = handlePSync(client_fd, redisInfo);
+        res = handlePSync(client_fd, redisDb, redisInfo);
         sendData(res, client_fd);
         vector<uint8_t> rdb = getEmptyRdb();
         int rdbLen = rdb.size();
@@ -76,6 +70,7 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         string header = RESPBulkStringEncoder(lenStr);
         sendData(header, client_fd);
         send(client_fd, rdb.data(), rdb.size(), 0);
+        cout<<"finished psync"<<endl;
     }
     else {
         string err = "-ERR unknown command\r\n";
