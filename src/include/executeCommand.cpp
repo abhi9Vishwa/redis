@@ -62,7 +62,7 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         if (cmds[1] == "replication") {
             res = handleInfo(client_fd, redisInfo);
         }
-        else res = "_ERR Invalid command for info";
+        else res = "-ERR Invalid command for info";
     }
     else if (cmd == "REPLCONF") {
         res = handleReplConf(client_fd);
