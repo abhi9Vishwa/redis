@@ -4,7 +4,7 @@
 
 using namespace std;
 
-std::string handleSet(std::string& key, std::string& val, std::string opt, std::string expiryStr, unordered_map<string, string>& store, mutex& store_mtx, unordered_map<string, long long> &expiry)
+std::string handleSet(std::string& key, std::string& val, unordered_map<string, string>& store, mutex& store_mtx, unordered_map<string, long long> &expiry, std::string opt, std::string expiryStr)
 {
     int expiryVal = stoi(expiryStr);
     long long expire_at = -1;

@@ -16,8 +16,8 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
 
     std::unordered_map<std::string, std::string> store = redisDb.store;
 
-    std::unordered_map<std::string, std::condition_variable> streamCVs = redisDb.streamCVs;
-    std::unordered_map<std::string, std::mutex> streamMtxMap = redisDb.streamMtxMap;
+    // std::unordered_map<std::string, std::condition_variable> streamCVs = redisDb.streamCVs;
+    // std::unordered_map<std::string, std::mutex> streamMtxMap = redisDb.streamMtxMap;
 
     std::unordered_map<std::string, long long> expiry = redisDb.expiry;
 
@@ -54,7 +54,7 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         sendData(res, client_fd);
     }
     else if (cmd == "XADD") {
-        string res = handleStreamAdd(cmds, redisDb.stream_mtx, streamStore, streamCVs);
+        string res = handleStreamAdd(cmds, redisDb.stream_mtx, streamStore, redisDb.streamCVs);
         sendData(res, client_fd);
     }
     else if (cmd == "XRANGE") {
@@ -62,7 +62,7 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         sendData(res, client_fd);
     }
     else if (cmd == "XREAD") {
-        string res = handleXRead(cmds, redisDb.stream_mtx, streamStore, streamCVs);
+        string res = handleXRead(cmds, redisDb.stream_mtx, streamStore, redisDb.streamCVs);
         sendData(res, client_fd);
     }
     else if (cmd == "INCR") {
@@ -95,4 +95,6 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         string err = "-ERR unknown command\r\n";
         send(client_fd, err.c_str(), err.size(), 0);
     }
+    string res= " done";
+    return res;
 }
