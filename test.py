@@ -92,8 +92,8 @@ def run_multithreaded_tests():
         args=(host, port, t3_cmds),
         kwargs={"delay_between": 1.0},
     )
-    # threads.append(t1)
-    # threads.append(t2)
+    threads.append(t1)
+    threads.append(t2)
     threads.append(t3)
 
     for t in threads:
