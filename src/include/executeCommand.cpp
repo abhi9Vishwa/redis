@@ -7,6 +7,7 @@
 #include "IncrDecr.hpp"
 #include "handleCmds.hpp"
 #include "syncMasterSlave.hpp"
+#include "rdbManager.hpp"
 
 #include <bits/stdc++.h>
 using namespace std;
@@ -83,6 +84,15 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd, Redis
     }
     else if(cmd == "WAIT"){
         res = handleWait(client_fd, cmds, redisDb, redisInfo);
+    }
+    else if(cmd == "CONFIG"){
+        if(cmds[1] == "GET" && cmds[2] == "dir") {
+            cout<<"reached"<<endl;
+            res = getRdbDirectory(redisInfo);
+        }
+        if(cmds[1] == "GET" && cmds[2] == "dbfilename") {
+            res = getRdbFilename(redisInfo);
+        }
     }
     else if(cmd == "DEBUG"){
         cout << "Master data" << endl;

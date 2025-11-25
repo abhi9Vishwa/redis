@@ -76,7 +76,18 @@ int main(int argc, char** argv) {
             redisInfo.setMasterHost(masterHost);
             redisInfo.setMasterPort(masterPort);
         }
-
+        else{    
+            string optDir = argv[1];
+            string dir = argv[2];
+            string optFile = argv[3];
+            string filename = argv[4];
+            
+            if(optDir == "--dir" && optFile == "--dbfilename"){
+                cout << dir << " " << filename << endl;
+                redisInfo.setRdbDir(dir);
+                redisInfo.setRdbFilename(filename);
+            }
+        }
     }
 
     int reuse = 1;

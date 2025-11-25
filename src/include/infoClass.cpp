@@ -77,3 +77,23 @@ void RedisInfo::addReplOffset(int n)
 void RedisInfo::setRole(std::string& role) {
     this->role = role;
 }
+
+void RedisInfo::setRdbDir(std::string& dir)
+{
+    this->rdbDir = dir;
+}
+
+void RedisInfo::setRdbFilename(std::string& filename)
+{
+    this->rdbFilename = filename;
+}
+
+std::string RedisInfo::getRdbDir()
+{
+    return this->rdbDir;
+}
+
+std::string RedisInfo::getRdbFilename()
+{
+    return this->rdbFilename;
+}

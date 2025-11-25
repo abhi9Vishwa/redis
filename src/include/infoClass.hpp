@@ -14,6 +14,8 @@ private:
     long long masterReplOffset;
     std::string masterHost;
     int masterPort;
+    std::string rdbDir;
+    std::string rdbFilename;
 public:
     std::mutex redInfoMtx;
     RedisInfo(std::string& role);
@@ -28,4 +30,9 @@ public:
     void setMasterPort(int& port);
     void addReplOffset(int n);
     void setRole(std::string& role);
+
+    void setRdbDir(std::string& dir);
+    void setRdbFilename(std::string& filename);
+    std::string getRdbDir();
+    std::string getRdbFilename();
 };

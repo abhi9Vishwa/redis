@@ -76,7 +76,8 @@ def run_multithreaded_tests():
     t3_cmds = [
         # ["DEBUG"],
         # ["SET", "foo", "bar"],
-        ["WAIT", "1", "5000"],
+        ["CONFIG", "GET", "dir"],
+        ["CONFIG", "GET", "dbfilename"],
         # ["REPLCONF", "GETACK", "*"],
         # ["INCR", "counter"],
         # ["INCR", "counter"],
