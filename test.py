@@ -15,7 +15,7 @@ def send_multiple_commands(host: str, port: int, commands: list[list[str]], dela
     """Send multiple commands over one persistent connection."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(2)
+            s.settimeout(10)
             s.connect((host, port))
             print(f"[{threading.current_thread().name}] Connected to Redis")
 
@@ -74,16 +74,17 @@ def run_multithreaded_tests():
 
     # Thread 3: Simple client that sends a mix of normal commands
     t3_cmds = [
+        # ["DEBUG"],
+        # ["SET", "foo", "bar"],
+        ["WAIT", "1", "5000"],
         # ["REPLCONF", "GETACK", "*"],
-        ["SET", "foo", "bar"],
-        # ["REPLCONF", "GETACK", "*"],
-        ["INCR", "counter"],
-        ["INCR", "counter"],
+        # ["INCR", "counter"],
+        # ["INCR", "counter"],
         # ["GET", "foo"],
         # ["GET", "counter"],
         # # ["INCR", "foo"],
         # ["GET", "foo"],
-        ["PING"],
+        # ["PING"],
         # ["REPLCONF", "GETACK", "*"],
         # ["ECHO", "test"]
 

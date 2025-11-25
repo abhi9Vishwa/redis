@@ -4,11 +4,11 @@
 #include "infoClass.hpp"
 #include "helperFunc.hpp"
 
-void addReplicaCreds(int& fd, std::vector<ReplicaInfo>& allReps, std::mutex& repMtx) {
-    ReplicaInfo r = { fd };
+void addReplicaCreds(int& fd, std::unordered_map<int, ReplicaInfo>& allReps, std::mutex& repMtx) {
+    ReplicaInfo r = { fd, 0 , now_ms() };
     {
         std::lock_guard lock(repMtx);
-        allReps.push_back(r);
+        allReps[fd] = r;
     }
 }
 

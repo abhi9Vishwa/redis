@@ -6,6 +6,7 @@
 #include "streamsfuncs.hpp"
 #include "IncrDecr.hpp"
 #include "handleCmds.hpp"
+#include "syncMasterSlave.hpp"
 
 #include <bits/stdc++.h>
 using namespace std;
@@ -79,6 +80,17 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd, Redis
         sendData(header, client_fd);
         send(client_fd, rdb.data(), rdb.size(), 0);
         cout << "finished psync" << endl;
+    }
+    else if(cmd == "WAIT"){
+        res = handleWait(client_fd, cmds, redisDb, redisInfo);
+    }
+    else if(cmd == "DEBUG"){
+        cout << "Master data" << endl;
+        cout << redisInfo.getReplOffset() << endl;
+        cout<<"replica data"<<endl;
+        for(auto i : redisDb.allReplicas){
+            cout << i.first << " " << i.second.ackedOffset<< " " << i.second.lastSeenTime << endl;
+        }
     }
     else {
         string err = "-ERR unknown command\r\n";

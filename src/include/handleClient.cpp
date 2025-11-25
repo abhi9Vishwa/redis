@@ -36,6 +36,7 @@ void handle_client(int client_fd, RedisAllData& redisDb, RedisInfo& redisInfo)
 
                 if(cmds[0] == "REPLCONF" && cmds[1] == "ACK"){
                     cout<< "received offset from slave: "<<req<<endl;
+                    updateRepsOffset(client_fd, cmds, redisDb);
                     req.clear();
                     continue;
                 }
@@ -47,7 +48,7 @@ void handle_client(int client_fd, RedisAllData& redisDb, RedisInfo& redisInfo)
                     continue;
                 }
                 processCmds(cmds, client_fd, redisDb, redisInfo);
-                replicateToReplicas(req, redisDb);
+                replicateToReplicas(client_fd, req, redisDb, redisInfo);
                 // if(redisInfo.getRole() == "master"){
                 //     if(isWriteCommand(cmds[0])){
                 //         // send cmds to replicas in map

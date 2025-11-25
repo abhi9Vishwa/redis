@@ -9,6 +9,8 @@ struct StreamEntry {
 
 struct ReplicaInfo {
     int sock_fd;
+    long long ackedOffset;
+    long long lastSeenTime;
 };
 
 struct RedisAllData {
@@ -31,10 +33,12 @@ struct RedisAllData {
     std::unordered_map<int, std::queue<std::vector<std::string>>> multiQueue;
     std::unordered_map<int, bool> inMulti;
     
-    std::vector<ReplicaInfo> allReplicas;
+    // std::vector<ReplicaInfo> allReplicas;
     std::mutex replicaMtx;
+    std::unordered_map<int, ReplicaInfo> allReplicas;
 
-    
+    std::unordered_map<int, long long> repLastOffset;
+
     // to be implemented later
     std::unordered_map<std::string, std::vector<std::string>> listStore;
 };

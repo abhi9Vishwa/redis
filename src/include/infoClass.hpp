@@ -5,6 +5,7 @@
 #include <boost/uuid/uuid.hpp>             // For boost::uuids::uuid
 #include <boost/uuid/uuid_generators.hpp>  // For boost::uuids::random_generator
 #include <boost/uuid/uuid_io.hpp> 
+#include <mutex>
 
 class RedisInfo {
 private:
@@ -14,6 +15,7 @@ private:
     std::string masterHost;
     int masterPort;
 public:
+    std::mutex redInfoMtx;
     RedisInfo(std::string& role);
     RedisInfo();
     ~RedisInfo();
