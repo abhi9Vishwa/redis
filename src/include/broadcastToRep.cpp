@@ -1,8 +1,11 @@
 #include "broadcastToRep.hpp"
 #include "helperFunc.hpp"
 #include <bits/stdc++.h>
+#include "infoClass.hpp"
+#include "syncMasterSlave.hpp"
 
 using namespace std;
+
 
 
 void replicateToReplicas(std::string& rawCmd, RedisAllData& redisDb)
@@ -11,8 +14,9 @@ void replicateToReplicas(std::string& rawCmd, RedisAllData& redisDb)
     for (auto it = redisDb.allReplicas.begin(); it != redisDb.allReplicas.end(); ) {
         cout << "Size of replica vec : " << redisDb.allReplicas.size() << endl;
         int fd = it->sock_fd;
-        cout << "sent to client : " << fd << endl;
         size_t sent = sendData(rawCmd, fd);
+        cout << "SENT to all reps" << endl;
+        sendREPLGetAck(fd);
         if (sent <= 0) {
             close(fd);
             redisDb.allReplicas.erase(it);

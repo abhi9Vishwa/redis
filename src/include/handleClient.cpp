@@ -22,36 +22,42 @@ void handle_client(int client_fd, RedisAllData& redisDb, RedisInfo& redisInfo)
         char buffer[4096];
         string req;
         while (true) {
-            cout<<" this is the culprit" << endl;
             memset(buffer, 0, sizeof(buffer));
             int bytes_recv = recv(client_fd, buffer, sizeof(buffer), 0);
             if (bytes_recv <= 0)
                 break;
-
+            cout << "Bytes recved" << bytes_recv << endl;
             req.append(buffer, bytes_recv);
             if (req.find("\r\n") == string::npos)
                 continue;
 
             try {
                 vector<string> cmds = RESPArrayParser(req);
+
+                if(cmds[0] == "REPLCONF" && cmds[1] == "ACK"){
+                    cout<< "received offset from slave: "<<req<<endl;
+                    req.clear();
+                    continue;
+                }
+
                 if (cmds.empty()) {
                     string err = "-ERR empty command\r\n";
                     send(client_fd, err.c_str(), err.size(), 0);
                     req.clear();
                     continue;
                 }
-                if(redisInfo.getRole() == "master"){
-                    processCmds(cmds, client_fd, redisDb, redisInfo);
-                    if(isWriteCommand(cmds[0])){
-                        // send cmds to replicas in map
-                        replicateToReplicas(req, redisDb);
-                    }
-                }
-                else {
-                    if(!isWriteCommand(cmds[0])){
-                        processCmds(cmds, client_fd, redisDb, redisInfo);
-                    }
-                }
+                processCmds(cmds, client_fd, redisDb, redisInfo);
+                replicateToReplicas(req, redisDb);
+                // if(redisInfo.getRole() == "master"){
+                //     if(isWriteCommand(cmds[0])){
+                //         // send cmds to replicas in map
+                //     }
+                // }
+                // else {
+                //     if(!isWriteCommand(cmds[0])){
+                //         processCmds(cmds, client_fd, redisDb, redisInfo);
+                //     }
+                // }
                 req.clear();
             }
             catch (const exception& e) {

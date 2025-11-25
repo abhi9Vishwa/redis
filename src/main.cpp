@@ -18,6 +18,7 @@
 #include "slaveConn.hpp"
 #include "dataStructs.hpp"
 #include "processCmds.hpp"
+#include "syncMasterSlave.hpp"
 
 using namespace std;
 
@@ -116,10 +117,12 @@ int main(int argc, char** argv) {
             while (true) {
                 int n = recv(fd, temp, sizeof(temp), 0);
                 if (n <= 0) break;
-                cout<<"stuck here";
+                cout<<"calling offset"<<endl;
+                redisInfo.addReplOffset(n);
                 buf.append(temp, n);
+                cout<<buf<<endl;
                 vector<string> cmds = RESPArrayParser(buf);
-                processCmds(cmds, fd, redisDB, redisInfo, true);
+                processCmdsFromMaster(cmds, fd, redisDB, redisInfo, true);
                 buf.clear();
             }
             // Handle handshake

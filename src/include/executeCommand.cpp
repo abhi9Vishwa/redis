@@ -10,9 +10,15 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisAllData & redisDb, RedisInfo& redisInfo)
+std::string executeCommand(std::vector<std::string>& cmds, int& client_fd, RedisAllData& redisDb, RedisInfo& redisInfo)
 {
-    string res= " done";
+    cout << "exec cmd" << endl;
+    for (auto i: cmds)
+    {
+        cout<<i << " ";
+    }
+    
+    string res = " done";
     string cmd = cmds[0];
     cout << "Process: " << cmd << endl;
     if (cmd == "PING") {
@@ -43,7 +49,7 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         res = handleStreamAdd(cmds, redisDb.stream_mtx, redisDb.streamStore, redisDb.streamCVs);
     }
     else if (cmd == "XRANGE") {
-        res = handleXRange(cmds[1], cmds[2], cmds[3], redisDb.stream_mtx,redisDb.streamStore);
+        res = handleXRange(cmds[1], cmds[2], cmds[3], redisDb.stream_mtx, redisDb.streamStore);
     }
     else if (cmd == "XREAD") {
         res = handleXRead(cmds, redisDb.stream_mtx, redisDb.streamStore, redisDb.streamCVs);
@@ -59,7 +65,9 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         else res = "-ERR Invalid command for info";
     }
     else if (cmd == "REPLCONF") {
-        res = handleReplConf(client_fd);
+        if(cmds[1] != "GETACK" && cmds[1] != "ACK")
+            res = handleReplConf(client_fd);
+        cout << "REPLCONF" << cmds[1] << endl;
     }
     else if (cmd == "PSYNC") {
         res = handlePSync(client_fd, redisDb, redisInfo);
@@ -70,7 +78,7 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd,RedisA
         string header = RESPBulkStringEncoder(lenStr);
         sendData(header, client_fd);
         send(client_fd, rdb.data(), rdb.size(), 0);
-        cout<<"finished psync"<<endl;
+        cout << "finished psync" << endl;
     }
     else {
         string err = "-ERR unknown command\r\n";

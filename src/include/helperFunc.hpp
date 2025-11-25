@@ -29,4 +29,8 @@ size_t sendData(std::string resp, int& client_fd);
 
 bool isWriteCommand(const std::string& cmd);
 
+std::string encodeToRESPArray(std::vector<std::string>& vec);
+
+
+
 

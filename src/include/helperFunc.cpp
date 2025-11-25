@@ -192,9 +192,19 @@ size_t sendData(string resp, int& client_fd) {
 
 bool isWriteCommand(const std::string& cmd) {
     static unordered_set<string> writeCmds = {
-        "SET", "DEL", "XADD", "HSET", "LPUSH", "RPUSH", "INCR", "DECR", "MULTI", "EXEC"
+        "SET", "DEL", "XADD", "HSET", "LPUSH", "RPUSH", "INCR", "DECR", "MULTI", "EXEC", "DISCARD"
     };
     string upper = cmd;
     transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
     return writeCmds.count(upper);
+}
+
+std::string encodeToRESPArray(std::vector<std::string>& vec)
+{
+    int len = vec.size();
+    std::string resp = "*" + to_string(len) + "\r\n";
+    for(auto i : vec){
+        resp += "$" + to_string(i.size()) + "\r\n" + i + "\r\n";
+    }
+    return resp;
 }

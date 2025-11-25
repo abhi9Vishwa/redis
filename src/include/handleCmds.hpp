@@ -10,3 +10,5 @@ std::string handleReplConf(int& fd);
 
 std::string handlePSync(int& fd, RedisAllData& redisdb, RedisInfo& redisInfo);
 
+// std::string handleReplGetAck(int& fd, RedisInfo& redisInfo);
+

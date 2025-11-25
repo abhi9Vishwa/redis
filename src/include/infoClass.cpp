@@ -7,25 +7,25 @@
 
 using namespace std;
 
-RedisInfo::RedisInfo(){
+RedisInfo::RedisInfo() {
     this->role = "not initialized yet";
     boost::uuids::random_generator gen;
     boost::uuids::uuid id = gen();
     std::string s = boost::uuids::to_string(id);
 
-    this->master_replid = s;
-    this->master_repl_offset = 0;
+    this->masterReplid = s;
+    this->masterReplOffset = 0;
 }
 
-RedisInfo::RedisInfo(std::string & role)
+RedisInfo::RedisInfo(std::string& role)
 {
     this->role = role;
     boost::uuids::random_generator gen;
     boost::uuids::uuid id = gen();
     std::string s = boost::uuids::to_string(id);
 
-    this->master_replid = s;
-    this->master_repl_offset = 0;
+    this->masterReplid = s;
+    this->masterReplOffset = 0;
 }
 
 RedisInfo::~RedisInfo()
@@ -39,12 +39,12 @@ std::string RedisInfo::getRole()
 
 std::string RedisInfo::getReplId()
 {
-    return this->master_replid;
+    return this->masterReplid;
 }
 
-int RedisInfo::getReplOffset()
+long long RedisInfo::getReplOffset()
 {
-    return this->master_repl_offset;
+    return this->masterReplOffset;
 }
 
 std::string RedisInfo::getMasterHost()
@@ -59,7 +59,7 @@ int RedisInfo::getMasterPort()
 
 void RedisInfo::setMasterHost(std::string& host)
 {
-    this->masterHost =host;
+    this->masterHost = host;
 }
 
 void RedisInfo::setMasterPort(int& port)
@@ -67,6 +67,13 @@ void RedisInfo::setMasterPort(int& port)
     this->masterPort = port;
 }
 
-void RedisInfo::setRole(std::string& role){
+void RedisInfo::addReplOffset(int n)
+{
+    cout<< "offset" <<n<<endl;
+    this->masterReplOffset += n;
+    cout<<"master offset" << this->masterReplOffset <<endl;
+}
+
+void RedisInfo::setRole(std::string& role) {
     this->role = role;
 }
