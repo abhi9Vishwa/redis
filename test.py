@@ -48,9 +48,11 @@ def run_multithreaded_tests():
 
     # Thread 1: Persistent client that does XREAD BLOCK + XREAD again
     t1_cmds = [
-        ["XREAD", "BLOCK", "10000", "STREAMS", "mystream", "$"],
-        ["PING"],
-        ["ECHO", "done"]
+        # ["XREAD", "BLOCK", "10000", "STREAMS", "mystream", "$"],
+        # ["PING"],
+        # ["ECHO", "done"],
+        # ["SUBSCRIBE", "mychan1"],
+
     ]
     t1 = threading.Thread(
         target=send_multiple_commands,
@@ -61,9 +63,11 @@ def run_multithreaded_tests():
 
     # Thread 2: Another client that writes data periodically
     t2_cmds = [
-        ["XADD", "mystream", "*", "field1", "value1"],
-        ["XADD", "mystream", "*", "field2", "value2"],
-        ["XADD", "mystream", "*", "field3", "value3"]
+        # ["SUBSCRIBE", "mychan1"],
+
+        # ["XADD", "mystream", "*", "field1", "value1"],
+        # ["XADD", "mystream", "*", "field2", "value2"],
+        # ["XADD", "mystream", "*", "field3", "value3"]
     ]
     t2 = threading.Thread(
         target=send_multiple_commands,
@@ -74,11 +78,15 @@ def run_multithreaded_tests():
 
     # Thread 3: Simple client that sends a mix of normal commands
     t3_cmds = [
-        ["SUBSCRIBE", "mychan1"],
-        ["SUBSCRIBE", "mychan3"],
-        ["SUBSCRIBE", "mychan2"],
-        ["SUBSCRIBE", "mychan1"],
+        # ["SUBSCRIBE", "mychan1"],
+        # ["SUBSCRIBE", "mychan2"],
         # ["SET", "foo", "bar", ],
+
+        # ["SUBSCRIBE", "mychan2"],
+        # ["SUBSCRIBE", "mychan1"],
+
+        ["PUBLISH", "mychan1"],
+        ["PUBLISH", "mychan2"],
         # ["SET", "num", "12345", "PX", "12343"],
         # # ["CONFIG", "GET", "dir"],
         # # ["CONFIG", "GET", "dbfilename"],
@@ -102,8 +110,8 @@ def run_multithreaded_tests():
         args=(host, port, t3_cmds),
         kwargs={"delay_between": 1.0},
     )
-    # threads.append(t1)
-    # threads.append(t2)
+    threads.append(t1)
+    threads.append(t2)
     threads.append(t3)
 
     for t in threads:

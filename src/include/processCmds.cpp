@@ -13,7 +13,7 @@ void processCmds(std::vector<std::string>& parts, int client_fd, RedisAllData& r
     std::unordered_map<int, bool> inMulti = redisDb.inMulti;
 
     string cmd = parts[0];
-
+    
     // MULTI
     if (cmd == "MULTI") {
         string resp = handleMulti(client_fd, multiQueue, inMulti, redisDb, redisInfo);
@@ -45,5 +45,6 @@ void processCmds(std::vector<std::string>& parts, int client_fd, RedisAllData& r
 
     // Normal command
     string resp = executeCommand(parts, client_fd, redisDb, redisInfo);
-    if (!isRep) sendData(resp, client_fd);
+    if (!isRep) ssize_t sent = sendData(resp, client_fd);
+
 }

@@ -103,7 +103,10 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd, Redis
         res = loadRDB(rdbFilePath, redisDb);
     }
     else if(cmd == "SUBSCRIBE") {
-        res = subscribeToChannel(client_fd, cmds, redisDb);
+        subscribeToChannel(client_fd, cmds, redisDb);
+    }
+    else if(cmd == "PUBLISH"){
+        res = publishToChannel(client_fd, cmds, redisDb);
     }
     else if(cmd == "DEBUG") {
         cout << "Master data" << endl;

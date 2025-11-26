@@ -5,3 +5,5 @@
 
 
 std::string subscribeToChannel(int& fd, std::vector<std::string>& cmds, RedisAllData& redisDb);
+
+std::string publishToChannel(int& fd, std::vector<std::string>& cmds, RedisAllData& redisDb);

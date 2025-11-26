@@ -13,6 +13,11 @@ struct ReplicaInfo {
     long long lastSeenTime;
 };
 
+// struct SubscriptionData{
+//     bool inSubscriptionMode = false;
+//     std::unordered_set<std::string> clientChannels;
+// };
+
 struct RedisAllData {
     RedisAllData() = default;
 
@@ -32,14 +37,16 @@ struct RedisAllData {
 
     std::unordered_map<int, std::queue<std::vector<std::string>>> multiQueue;
     std::unordered_map<int, bool> inMulti;
-    
+
     // std::vector<ReplicaInfo> allReplicas;
     std::mutex replicaMtx;
     std::unordered_map<int, ReplicaInfo> allReplicas;
 
     std::unordered_map<int, long long> repLastOffset;
 
-    std::unordered_map<int, std::unordered_set<std::string>> subscriptions;
+    std::unordered_map<int, std::unordered_set<std::string>> clientSubscriptions;
+    std::unordered_map<std::string, std::unordered_set<int>> channelSubscription;
+
     std::mutex subsMtx;
 
     // to be implemented later
