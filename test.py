@@ -74,6 +74,10 @@ def run_multithreaded_tests():
 
     # Thread 3: Simple client that sends a mix of normal commands
     t3_cmds = [
+        ["SUBSCRIBE", "mychan1"],
+        ["SUBSCRIBE", "mychan3"],
+        ["SUBSCRIBE", "mychan2"],
+        ["SUBSCRIBE", "mychan1"],
         # ["SET", "foo", "bar", ],
         # ["SET", "num", "12345", "PX", "12343"],
         # # ["CONFIG", "GET", "dir"],
@@ -82,9 +86,9 @@ def run_multithreaded_tests():
         # ["INCR", "counter"],
         # ["INCR", "counter"],
         # ["SAVE"],
-        # ["KEYS", "*"]
-        ["GET", "foo"],
-        ["GET", "counter"],
+        # ["KEYS", "*"],
+        # ["GET", "num"],
+        # ["GET", "counter"],
         # # ["INCR", "foo"],
         # ["GET", "foo"],
         # ["PING"],

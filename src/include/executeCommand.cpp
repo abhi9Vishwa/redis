@@ -8,6 +8,7 @@
 #include "handleCmds.hpp"
 #include "syncMasterSlave.hpp"
 #include "rdbManager.hpp"
+#include "subsChannel.hpp"
 
 #include <bits/stdc++.h>
 using namespace std;
@@ -100,6 +101,9 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd, Redis
     else if(cmd == "KEYS") {
         string rdbFilePath = redisInfo.getRdbDir() + "/" + redisInfo.getRdbFilename();
         res = loadRDB(rdbFilePath, redisDb);
+    }
+    else if(cmd == "SUBSCRIBE") {
+        res = subscribeToChannel(client_fd, cmds, redisDb);
     }
     else if(cmd == "DEBUG") {
         cout << "Master data" << endl;

@@ -39,6 +39,9 @@ struct RedisAllData {
 
     std::unordered_map<int, long long> repLastOffset;
 
+    std::unordered_map<int, std::unordered_set<std::string>> subscriptions;
+    std::mutex subsMtx;
+
     // to be implemented later
     std::unordered_map<std::string, std::vector<std::string>> listStore;
 };
