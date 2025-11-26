@@ -28,45 +28,94 @@ std::string subscribeToChannel(int& fd, std::vector<std::string>& cmds, RedisAll
     if(cmds.size() < 2) {
         return "-ERR wrong number of arguments for 'subscribe'";
     }
-    string channel = cmds[1];
-    int channelCt = addSubsChannel(fd, channel, redisDb);
-    vector<string> data = {cmds[0], channel, to_string(channelCt)};
-    string resp = encodeToRESPArray(data);
 
-    while (true)
-    {
+    std::string channel = cmds[1];
+    int channelCt = addSubsChannel(fd, channel, redisDb);
+    vector<string> data = { "subscribe", channel, std::to_string(channelCt) };
+    std::string resp = encodeToRESPArray(data);
+
+    while(true) {
+        // send response
         ssize_t sent = send(fd, resp.c_str(), resp.size(), 0);
-        if(sent < 0) {
+        if(sent <= 0) {
             removeSubsForFd(fd, channel, redisDb);
-            return "sent failed";
+            return "client disconnected";
         }
+
+        // receive command
         char buffer[4096];
-        ssize_t received = recv(fd, buffer, sizeof(buffer), 0);
-        if(received <= 1) return "recv ended";
-        string req(buffer);
-        vector<string> input = RESPArrayParser(req);
-        if(input[0] == "SUBSCRIBE"){
-            channelCt = addSubsChannel(fd, input[1], redisDb);
-            data = {input[0], input[1], to_string(channelCt)};
-            resp = encodeToRESPArray(data);
+        ssize_t received = recv(fd, buffer, sizeof(buffer) - 1, 0);
+        if(received <= 0) {
+            // client closed the connection -> clean up
+            removeSubsForFd(fd, channel, redisDb);
+            return "client disconnected";
         }
-        else if(input[0] == "PING"){
-            data = {"PONG", ""};
+
+        buffer[received] = '\0';
+        std::string req(buffer);
+
+        std::vector<std::string> input = RESPArrayParser(req);
+        if(input.empty()) {
+            resp = "-ERR invalid command";
+            continue;
+        }
+
+        std::string cmd = input[0];
+        channel = input[1];
+        if(cmd == "QUIT") {
+            removeSubsForFd(fd, channel, redisDb);
+            return "*1\r\n$5\r\nOK\r\n";  // example
+        }
+        else if(cmd == "SUBSCRIBE") {
+            if(input.size() < 2) {
+                resp = "-ERR missing channel";
+            }
+            else {
+                channelCt = addSubsChannel(fd, input[1], redisDb);
+                vector<string> data = { "subscribe", input[1], std::to_string(channelCt) };
+                resp = encodeToRESPArray(data);
+            }
+        }
+        else if(cmd == "PING") {
+            vector<string> data = { "pong", "" };
             resp = encodeToRESPArray(data);
         }
         else {
             resp = "-ERR Only subscription commands allowed";
         }
     }
-    cout << "out of loop" << endl;
-
-    return resp;
 }
 
 std::string publishToChannel(int& fd, std::vector<std::string>& cmds, RedisAllData& redisDb)
 {
     string channel = cmds[1];
+    string message = cmds[2];
     int clientSubs = redisDb.channelSubscription[channel].size();
-    string resp = ":" + to_string(clientSubs) + "\r\n";
+    vector<string> data = {"message", channel, message};
+    string resp = encodeToRESPArray(data);
+    for(auto i : redisDb.channelSubscription[channel]) {
+        ssize_t sent;
+        try
+        {
+            sent =  send(i, resp.data(), resp.size(), 0);
+            if(sent == 0){
+                cout << "client socket is closed" << endl;
+                removeSubsForFd(fd, channel, redisDb);
+            }
+            else if(sent == -1){
+                cout << "client socket error" << endl;
+                removeSubsForFd(fd, channel, redisDb);
+            }
+            else {
+                cout << "successfully published" << endl;
+            }
+        }
+        catch(const std::exception& e)
+        {
+            cout << "publish error" << endl;
+            std::cerr << e.what() << '\n';
+        }
+        
+    }
     return resp;
 }

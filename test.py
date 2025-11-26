@@ -85,8 +85,8 @@ def run_multithreaded_tests():
         # ["SUBSCRIBE", "mychan2"],
         # ["SUBSCRIBE", "mychan1"],
 
-        ["PUBLISH", "mychan1"],
-        ["PUBLISH", "mychan2"],
+        ["PUBLISH", "mychan1", "the chosen one"],
+        # ["PUBLISH", "mychan2"],
         # ["SET", "num", "12345", "PX", "12343"],
         # # ["CONFIG", "GET", "dir"],
         # # ["CONFIG", "GET", "dbfilename"],
@@ -110,8 +110,8 @@ def run_multithreaded_tests():
         args=(host, port, t3_cmds),
         kwargs={"delay_between": 1.0},
     )
-    threads.append(t1)
-    threads.append(t2)
+    # threads.append(t1)
+    # threads.append(t2)
     threads.append(t3)
 
     for t in threads:
