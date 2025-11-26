@@ -1049,3 +1049,4 @@ vcpkg_installed
 .editorconfig
 .vscode/settings.json
 .vscode/settings.json
+*.rdb

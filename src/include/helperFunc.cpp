@@ -1,6 +1,7 @@
 #include "helperFunc.hpp"
 
-#include <bits/stdc++.h>  
+#include <bits/stdc++.h>
+
 #include "dataStructs.hpp"
 
 using namespace std;
@@ -11,42 +12,42 @@ long long now_ms() {
         .count();
 }
 
-
 bool checkIsStrNum(const string& s) {
     int n = s.size();
     int i = 0;
-    while (s[i] == ' ') { i++; }
-    if (i == n) return false;
+    while(s[i] == ' ') {
+        i++;
+    }
+    if(i == n) return false;
 
-    if (s[i] == '-' || s[i] == '+') i++;
-    if (i == n) return false;
+    if(s[i] == '-' || s[i] == '+') i++;
+    if(i == n) return false;
 
     bool hasDigit = false;
-    while (i < n && isdigit(s[i])) {
+    while(i < n && isdigit(s[i])) {
         hasDigit = true;
         i++;
     }
 
     // skip trailing spaces
-    while (i < n && s[i] == ' ') i++;
+    while(i < n && s[i] == ' ') i++;
 
     // valid only if all characters are processed and at least one digit found
     return hasDigit && i == n;
 }
 
-
 string RESPEncodeStream(vector<StreamEntry>& vec) {
-    if (vec.empty()) return "$-1\r\n";
+    if(vec.empty()) return "$-1\r\n";
     string res;
 
     size_t totSize = vec.size();
     res = string("*") + to_string(totSize) + "\r\n";
     res += string("*") + "2" + "\r\n";	// to account for StreamEntry
 
-    for (auto& i : vec) {
+    for(auto& i : vec) {
         res += "$" + to_string(i.id.size()) + "\r\n" + i.id + "\r\n";
         res += string("*") + to_string(i.fields.size() * 2) + "\r\n";
-        for (auto& j : i.fields) {
+        for(auto& j : i.fields) {
             res += "$" + to_string(j.first.size()) + "\r\n" + j.first + "\r\n";
             res +=
                 "$" + to_string(j.second.size()) + "\r\n" + j.second + "\r\n";
@@ -55,48 +56,45 @@ string RESPEncodeStream(vector<StreamEntry>& vec) {
     return res;
 }
 
-std::string RESPBulkStringEncoder(std::string str)
-{
-    if (str == "")
+std::string RESPBulkStringEncoder(std::string str) {
+    if(str == "")
         return "$-1\r\n";
     size_t len = str.size();
     return ("$" + std::to_string(len) + "\r\n" + str + "\r\n");
 }
 
-std::string recvData(int& fd)
-{
+std::string recvData(int& fd) {
     char buffer[4096];
     int bytesReceived = recv(fd, buffer, sizeof(buffer) - 1, 0);
-    if (bytesReceived > 0) {
-        buffer[bytesReceived] = '\0'; // Null-terminate the received data
+    if(bytesReceived > 0) {
+        buffer[bytesReceived] = '\0';  // Null-terminate the received data
         std::cout << "Received from server: " << buffer << "\n";
     }
-    else if (bytesReceived == 0) {
+    else if(bytesReceived == 0) {
         std::cout << "Server closed the connection.\n";
     }
     return std::string(buffer);
 }
 
-
 std::vector<std::string> RESPArrayParser(std::string& rawInput) {
     size_t pos = 0;
-    if (rawInput[pos] != '*')
+    if(rawInput[pos] != '*')
         throw std::runtime_error("Invalid RESP: missing array prefix '*'");
 
     // Parse array length
     size_t end = rawInput.find("\r\n", pos);
-    if (end == std::string::npos)
+    if(end == std::string::npos)
         throw std::runtime_error("Invalid RESP: no CRLF after array header");
     int arraySize = stoi(rawInput.substr(1, end - 1));
     pos = end + 2;
 
     std::vector<std::string> result;
-    for (int i = 0; i < arraySize; i++) {
-        if (rawInput[pos] != '$')
+    for(int i = 0; i < arraySize; i++) {
+        if(rawInput[pos] != '$')
             throw std::runtime_error("Invalid RESP: missing bulk string prefix '$'");
 
         end = rawInput.find("\r\n", pos);
-        if (end == std::string::npos)
+        if(end == std::string::npos)
             throw std::runtime_error("Invalid RESP: no CRLF after length");
         int strLen = stoi(rawInput.substr(pos + 1, end - pos - 1));
         pos = end + 2;
@@ -119,15 +117,14 @@ void pushBytes(void* startPtr, int lenToPush, std::vector<uint8_t>& container) {
     container.insert(container.end(), ptr, ptr + lenToPush);
 }
 
-
 template <typename T>
 void encodeLength(T& len, std::vector<uint8_t>& container) {
     pushSingleByte(0x80, container);
     uint32_t lenB = htonl(len);
-    uint8_t* dataPtr = reinterpret_cast<uint8_t*> (&len);
+    uint8_t* dataPtr = reinterpret_cast<uint8_t*>(&len);
 
     std::vector<uint8_t> data;
-    for (int i = 0; i < sizeof(T) / sizeof(uint8_t); i++) {
+    for(int i = 0; i < sizeof(T) / sizeof(uint8_t); i++) {
         data.push_back(dataPtr[i]);
     }
     pushBytes(data.data(), data.size(), container);
@@ -147,13 +144,10 @@ std::vector<uint8_t> getEmptyRdb() {
     return rdb;
 }
 
-
-
-
 pair<long long, long long> parseStreamId(const string& id, int end) {
     size_t sepIdx = id.find('-');
-    if (sepIdx == string::npos) {
-        if (end == 0)
+    if(sepIdx == string::npos) {
+        if(end == 0)
             return { stoll(id), 0 };
         else
             return { stoll(id), INT_MAX };
@@ -171,13 +165,13 @@ int binarySearch(const string& target, const vector<StreamEntry>& vec) {
 
     pair<ll, ll> tarPair = parseStreamId(target);
 
-    while (l <= r) {
+    while(l <= r) {
         int m = r - (l + r) / 2;
 
         pair<ll, ll> mp = parseStreamId(vec[m].id);
-        if (mp == tarPair)
+        if(mp == tarPair)
             return m;
-        else if (mp < tarPair)
+        else if(mp < tarPair)
             l = m + 1;
         else
             r = m - 1;
@@ -192,19 +186,53 @@ size_t sendData(string resp, int& client_fd) {
 
 bool isWriteCommand(const std::string& cmd) {
     static unordered_set<string> writeCmds = {
-        "SET", "DEL", "XADD", "HSET", "LPUSH", "RPUSH", "INCR", "DECR", "MULTI", "EXEC", "DISCARD"
-    };
+        "SET", "DEL", "XADD", "HSET", "LPUSH", "RPUSH", "INCR", "DECR", "MULTI", "EXEC", "DISCARD" };
     string upper = cmd;
     transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
     return writeCmds.count(upper);
 }
 
-std::string encodeToRESPArray(std::vector<std::string>& vec)
-{
+std::string encodeToRESPArray(std::vector<std::string>& vec) {
     int len = vec.size();
     std::string resp = "*" + to_string(len) + "\r\n";
-    for(auto i : vec){
+    for(auto i : vec) {
         resp += "$" + to_string(i.size()) + "\r\n" + i + "\r\n";
     }
     return resp;
+}
+
+vector<uint8_t> encodeLength(uint32_t len) {
+    vector<uint8_t> res;
+    if(len < (1 << 6)) {
+        res.push_back(len & 0x3F);
+    }
+    else if(len < (1 << 14)) {
+        uint16_t t = len;
+        uint8_t b1 = (1 << 6) | ((t >> 8) & 0x3F);
+        uint8_t b2 = t & 0xFF;
+
+        res.push_back(b1);
+        res.push_back(b2);
+    }
+    else {
+        res.push_back(0x80);
+        res.push_back((len >> 24) & 0xFF);
+        res.push_back((len >> 16) & 0xFF);
+        res.push_back((len >> 8) & 0xFF);
+        res.push_back(len & 0xFF);
+    }
+    return res;
+}
+
+vector<uint8_t> encodeString(string& str) {
+    vector<uint8_t> res = encodeLength(str.size());
+    for(char i : str) {
+        res.push_back(i);
+    }
+    return res;
+}
+
+std::vector<uint8_t> convertStrToByteVec(std::string& str) {
+    std::vector<uint8_t> res(str.begin(), str.end());
+    return res;
 }

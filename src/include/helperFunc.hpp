@@ -31,6 +31,10 @@ bool isWriteCommand(const std::string& cmd);
 
 std::string encodeToRESPArray(std::vector<std::string>& vec);
 
+std::vector<uint8_t> convertStrToByteVec(std::string& str);
 
+std::vector<uint8_t> encodeLength(uint32_t len);
+
+std::vector<uint8_t> encodeString(std::string& str);
 
 

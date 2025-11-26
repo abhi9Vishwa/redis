@@ -74,15 +74,17 @@ def run_multithreaded_tests():
 
     # Thread 3: Simple client that sends a mix of normal commands
     t3_cmds = [
-        # ["DEBUG"],
-        # ["SET", "foo", "bar"],
-        ["CONFIG", "GET", "dir"],
-        ["CONFIG", "GET", "dbfilename"],
-        # ["REPLCONF", "GETACK", "*"],
+        # ["SET", "foo", "bar", ],
+        # ["SET", "num", "12345", "PX", "12343"],
+        # # ["CONFIG", "GET", "dir"],
+        # # ["CONFIG", "GET", "dbfilename"],
+        # # ["REPLCONF", "GETACK", "*"],
         # ["INCR", "counter"],
         # ["INCR", "counter"],
-        # ["GET", "foo"],
-        # ["GET", "counter"],
+        # ["SAVE"],
+        # ["KEYS", "*"]
+        ["GET", "foo"],
+        ["GET", "counter"],
         # # ["INCR", "foo"],
         # ["GET", "foo"],
         # ["PING"],
