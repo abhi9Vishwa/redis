@@ -16,6 +16,8 @@ class UserInfo{
     void addPassword(std::string& plainPass);
     std::vector<std::string> getPasswords();
 
+    bool checkPassword(std::string& inputPass);
+
     void setUser(std::string& username);
     std::string getUser();
 

@@ -32,3 +32,13 @@ std::string updateUserPass(std::vector<std::string>& cmds, UserInfo & userInfo)
     return "+OK\r\n";
 }
 
+std::string authenticateUser(std::string password, UserInfo& userInfo)
+{
+    if(userInfo.checkPassword(password)){
+        return "+OK\r\n";
+    }
+    else{
+        return "-WRONGPASS invalid username-password pair or user is disabled.";
+    }
+}
+

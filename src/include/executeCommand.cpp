@@ -120,6 +120,9 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd, Redis
             res = updateUserPass(cmds, redisDb.userData[cmds[2]]);
         }
     }
+    else if(cmd == "AUTH"){
+        res = authenticateUser(cmds[2], redisDb.userData[cmds[1]]);
+    }
     else if(cmd == "DEBUG") {
         cout << "Master data" << endl;
         cout << redisInfo.getReplOffset() << endl;

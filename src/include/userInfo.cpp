@@ -45,6 +45,13 @@ std::vector<std::string> UserInfo::getPasswords()
     return res;
 }
 
+bool UserInfo::checkPassword(std::string& inputPass)
+{
+    string hashedPass = sha256(inputPass);
+    
+    return passwords.find(hashedPass) != passwords.end();
+}
+
 void UserInfo::setUser(std::string& username)
 {
     this->name = username;
