@@ -8,16 +8,13 @@ CHANNEL = "mychan1"
 
 
 def send_resp_array(sock, arr):
-    """
-    Sends a RESP array: arr = ["SUBSCRIBE", "channel"]
-    """
     out = f"*{len(arr)}\r\n"
     for item in arr:
         out += f"${len(item)}\r\n{item}\r\n"
     sock.sendall(out.encode())
 
 
-def subscriber_worker(name):
+def subscriber_worker(name, quit_after=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((HOST, PORT))
 
@@ -25,70 +22,80 @@ def subscriber_worker(name):
     print(f"[{name}] SUBSCRIBED to {CHANNEL}")
 
     buf = b""
+    msg_count = 0
 
     while True:
         chunk = sock.recv(4096)
         if not chunk:
-            print(f"[{name}] Connection closed")
+            print(f"[{name}] Connection closed by server")
+            sock.close()
+            return
             break
 
         buf += chunk
 
-        # Process RESP messages line by line (simple parser)
         while b"\r\n" in buf:
             line, buf = buf.split(b"\r\n", 1)
             line = line.decode(errors="ignore")
-
-            # Redis pub/sub messages come in as arrays:
-            # *3
-            # $7
-            # message
-            # $<len>
-            # <channel>
-            # $<len>
-            # <payload>
 
             if line.startswith("*"):
                 expected = int(line[1:])
                 parts = []
 
-                # Read the next expected *bulk strings* blocks
                 for _ in range(expected):
-                    # read $len
                     while b"\r\n" not in buf:
                         buf += sock.recv(4096)
+
                     bulk_len_line, buf = buf.split(b"\r\n", 1)
-                    bulk_len_line = bulk_len_line.decode()
+                    strlen = int(bulk_len_line.decode()[1:])
 
-                    assert bulk_len_line.startswith("$")
-                    strlen = int(bulk_len_line[1:])
-
-                    # read <data>
                     while len(buf) < strlen + 2:
                         buf += sock.recv(4096)
 
                     data = buf[:strlen].decode()
-                    buf = buf[strlen + 2:]  # skip data + CRLF
-
+                    buf = buf[strlen + 2:]
                     parts.append(data)
 
                 if parts[0] == "message":
-                    print(f"[{name}] Received: {parts[2]}")
+                    msg_count += 1
+                    print(f"[{name}] Received: {parts[2]} (count={msg_count})")
+
+                    # If this thread has a quit threshold and has reached it → send QUIT
+                    if quit_after is not None and msg_count >= quit_after:
+                        print(f"[{name}] Sending QUIT")
+                        time.sleep(2)
+                        send_resp_array(sock, ["QUIT"])
+                        time.sleep(0.1)
+                        sock.close()
+                        return
 
 
 def main():
     threads = []
-    for i in range(3):
-        t = threading.Thread(target=subscriber_worker, args=(f"Worker-{i+1}",))
-        t.daemon = True
-        t.start()
-        threads.append(t)
+
+    # Thread-1: normal
+    t1 = threading.Thread(target=subscriber_worker, args=("Worker-1",))
+    t1.daemon = True
+    t1.start()
+    threads.append(t1)
+
+    # Thread-2: normal
+    t2 = threading.Thread(target=subscriber_worker, args=("Worker-2",))
+    t2.daemon = True
+    t2.start()
+    threads.append(t2)
+
+    # Thread-3: quit after 3 messages
+    t3 = threading.Thread(target=subscriber_worker, args=("Worker-3", 1))
+    t3.daemon = True
+    t3.start()
+    threads.append(t3)
 
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("Shutting down")
+        pass
 
 
 if __name__ == "__main__":
