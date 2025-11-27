@@ -9,6 +9,7 @@
 #include "syncMasterSlave.hpp"
 #include "rdbManager.hpp"
 #include "subsChannel.hpp"
+#include "authHandler.hpp"
 
 #include <bits/stdc++.h>
 using namespace std;
@@ -107,6 +108,17 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd, Redis
     }
     else if(cmd == "PUBLISH"){
         res = publishToChannel(client_fd, cmds, redisDb);
+    }
+    else if(cmd == "ACL"){
+        if(cmds[1] == "WHOAMI"){
+            res = getWhoAmI(redisDb.userData["default"]);
+        }
+        else if(cmds[1] == "GETUSER"){
+            res = getUserFlags(client_fd, cmds, redisDb, redisDb.userData[cmds[2]]);
+        }
+        else if(cmds[1] == "SETUSER"){
+            res = updateUserPass(cmds, redisDb.userData[cmds[2]]);
+        }
     }
     else if(cmd == "DEBUG") {
         cout << "Master data" << endl;

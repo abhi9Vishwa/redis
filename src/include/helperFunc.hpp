@@ -29,7 +29,7 @@ size_t sendData(std::string resp, int& client_fd);
 
 bool isWriteCommand(const std::string& cmd);
 
-std::string encodeToRESPArray(std::vector<std::string>& vec);
+std::string encodeToRESPArray(std::vector<std::string> vec);
 
 std::vector<uint8_t> convertStrToByteVec(std::string& str);
 

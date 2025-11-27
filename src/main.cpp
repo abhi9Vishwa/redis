@@ -36,6 +36,8 @@ int main(int argc, char** argv) {
     string role = "master";
     RedisInfo redisInfo(role);
     RedisAllData redisDB;
+    redisDB.userData["default"];
+    
     signal(SIGINT, handle_sigint);
     int port = 6379;
     // Flush after every std::cout / std::cerr

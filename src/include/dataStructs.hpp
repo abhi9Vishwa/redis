@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bits/stdc++.h>
+#include "userInfo.hpp"
 
 struct StreamEntry {
     std::string id;
@@ -49,6 +50,7 @@ struct RedisAllData {
 
     std::mutex subsMtx;
 
+    std::unordered_map<std::string, UserInfo> userData; 
     // to be implemented later
     std::unordered_map<std::string, std::vector<std::string>> listStore;
 };

@@ -85,7 +85,9 @@ def run_multithreaded_tests():
         # ["SUBSCRIBE", "mychan2"],
         # ["SUBSCRIBE", "mychan1"],
 
-        ["PUBLISH", "mychan1", "the chosen one"],
+        ["ACL", "WHOAMI"],
+        ["ACL", "GETUSER", "default"],
+        # ["ACL", "SETUSER", "default", ">mypassword"],
         # ["PUBLISH", "mychan2"],
         # ["SET", "num", "12345", "PX", "12343"],
         # # ["CONFIG", "GET", "dir"],

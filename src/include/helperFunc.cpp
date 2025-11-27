@@ -192,7 +192,7 @@ bool isWriteCommand(const std::string& cmd) {
     return writeCmds.count(upper);
 }
 
-std::string encodeToRESPArray(std::vector<std::string>& vec) {
+std::string encodeToRESPArray(std::vector<std::string> vec) {
     int len = vec.size();
     std::string resp = "*" + to_string(len) + "\r\n";
     for(auto i : vec) {
