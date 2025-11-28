@@ -16,8 +16,7 @@ using namespace std;
 
 
 
-void handle_client(int client_fd, RedisAllData& redisDb, RedisInfo& redisInfo)
-{
+void handle_client(int client_fd, RedisAllData& redisDb, RedisInfo& redisInfo) {
     try {
         char buffer[4096];
         string req;

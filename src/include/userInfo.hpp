@@ -6,6 +6,7 @@ class UserInfo{
     std::string name;
     std::unordered_set<std::string> flags;
     std::unordered_set<std::string> passwords;
+    std::unordered_set<int> allowedUsers;
 
     public:
 
@@ -20,6 +21,9 @@ class UserInfo{
 
     void setUser(std::string& username);
     std::string getUser();
+
+    void allowUserOnAuth(int& fd);
+    bool isUserAllowed(int& fd);
 
     std::vector<std::string> getFlags();
 };

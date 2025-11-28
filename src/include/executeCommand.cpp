@@ -106,21 +106,21 @@ std::string executeCommand(std::vector<std::string>& cmds, int& client_fd, Redis
     else if(cmd == "SUBSCRIBE") {
         subscribeToChannel(client_fd, cmds, redisDb);
     }
-    else if(cmd == "PUBLISH"){
+    else if(cmd == "PUBLISH") {
         res = publishToChannel(client_fd, cmds, redisDb);
     }
-    else if(cmd == "ACL"){
-        if(cmds[1] == "WHOAMI"){
-            res = getWhoAmI(redisDb.userData["default"]);
+    else if(cmd == "ACL") {
+        if(cmds[1] == "WHOAMI") {
+            res = getWhoAmI(redisDb.userData[redisDb.currUser]);
         }
-        else if(cmds[1] == "GETUSER"){
+        else if(cmds[1] == "GETUSER") {
             res = getUserFlags(client_fd, cmds, redisDb, redisDb.userData[cmds[2]]);
         }
-        else if(cmds[1] == "SETUSER"){
-            res = updateUserPass(cmds, redisDb.userData[cmds[2]]);
+        else if(cmds[1] == "SETUSER") {
+            res = updateUserPass(cmds, redisDb, redisDb.userData[cmds[2]]);
         }
     }
-    else if(cmd == "AUTH"){
+    else if(cmd == "AUTH") {
         res = authenticateUser(cmds[2], redisDb.userData[cmds[1]]);
     }
     else if(cmd == "DEBUG") {

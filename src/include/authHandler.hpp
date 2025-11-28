@@ -10,4 +10,4 @@ std::string getUserFlags(int& fd, std::vector<std::string>& cmds, RedisAllData& 
 
 std::string updateUserPass(std::vector<std::string>& cmds, UserInfo& userInfo);
 
-std::string authenticateUser(std::string password, UserInfo& userInfo);
+std::string authenticateUser(std::string password, RedisAllData& redisDb, UserInfo& userInfo);

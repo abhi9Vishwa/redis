@@ -18,26 +18,26 @@ std::string getUserFlags(int& fd, std::vector<std::string>& cmds, RedisAllData& 
         resp = "-ERR user name is not provided";
     }
 
-    vector<string> data = { "flags", encodeToRESPArray(userInfo.getFlags()), "passwords", encodeToRESPArray(userInfo.getPasswords())};
+    vector<string> data = { "flags", encodeToRESPArray(userInfo.getFlags()), "passwords", encodeToRESPArray(userInfo.getPasswords()) };
     resp = encodeToRESPArray(data);
     return resp;
 }
 
-std::string updateUserPass(std::vector<std::string>& cmds, UserInfo & userInfo)
+std::string updateUserPass(std::vector<std::string>& cmds, RedisAllData& redisDb, UserInfo& userInfo)
 {
     string pass = cmds[3].substr(1);
-
-    cout<<pass<<endl;
+    
+    cout << pass << endl;
     userInfo.addPassword(pass);
     return "+OK\r\n";
 }
 
 std::string authenticateUser(std::string password, UserInfo& userInfo)
 {
-    if(userInfo.checkPassword(password)){
+    if(userInfo.checkPassword(password)) {
         return "+OK\r\n";
     }
-    else{
+    else {
         return "-WRONGPASS invalid username-password pair or user is disabled.";
     }
 }

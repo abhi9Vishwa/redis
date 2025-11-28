@@ -36,7 +36,8 @@ int main(int argc, char** argv) {
     string role = "master";
     RedisInfo redisInfo(role);
     RedisAllData redisDB;
-    redisDB.userData["default"];
+    redisDB.currUser = "default";
+    redisDB.userData[redisDB.currUser];
     
     signal(SIGINT, handle_sigint);
     int port = 6379;
