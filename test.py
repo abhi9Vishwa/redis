@@ -64,7 +64,7 @@ def run_multithreaded_tests():
     # Thread 2: Another client that writes data periodically
     t2_cmds = [
         # ["SUBSCRIBE", "mychan1"],
-
+        ["AUTH", "default", "mypassword"],
         # ["XADD", "mystream", "*", "field1", "value1"],
         # ["XADD", "mystream", "*", "field2", "value2"],
         # ["XADD", "mystream", "*", "field3", "value3"]
@@ -85,11 +85,11 @@ def run_multithreaded_tests():
         # ["SUBSCRIBE", "mychan2"],
         # ["SUBSCRIBE", "mychan1"],
 
+        ["AUTH", "default", "mypassword"],
         ["ACL", "WHOAMI"],
-        ["ACL", "SETUSER", "default", ">mypassword"],
+        # ["ACL", "SETUSER", "default", ">mypassword"],
         ["ACL", "GETUSER", "default"],
         ["AUTH", "default", "asdasdsad"],
-        ["AUTH", "default", "mypassword"],
         # ["PUBLISH", "mychan2"],
         # ["SET", "num", "12345", "PX", "12343"],
         # # ["CONFIG", "GET", "dir"],
@@ -115,7 +115,7 @@ def run_multithreaded_tests():
         kwargs={"delay_between": 1.0},
     )
     # threads.append(t1)
-    # threads.append(t2)
+    threads.append(t2)
     threads.append(t3)
 
     for t in threads:

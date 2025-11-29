@@ -26,4 +26,5 @@ class UserInfo{
     bool isUserAllowed(int& fd);
 
     std::vector<std::string> getFlags();
+	bool isNoPassSet();
 };

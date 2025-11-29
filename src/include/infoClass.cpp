@@ -49,12 +49,12 @@ long long RedisInfo::getReplOffset()
 
 std::string RedisInfo::getMasterHost()
 {
-    return this->getMasterHost();
+    return this->masterHost;
 }
 
 int RedisInfo::getMasterPort()
 {
-    return this->getMasterPort();
+    return this->masterPort;
 }
 
 void RedisInfo::setMasterHost(std::string& host)

@@ -23,18 +23,22 @@ std::string getUserFlags(int& fd, std::vector<std::string>& cmds, RedisAllData& 
     return resp;
 }
 
-std::string updateUserPass(std::vector<std::string>& cmds, RedisAllData& redisDb, UserInfo& userInfo)
+std::string updateUserPass(int& fd,std::vector<std::string>& cmds, RedisAllData& redisDb, UserInfo& userInfo)
 {
     string pass = cmds[3].substr(1);
     
     cout << pass << endl;
     userInfo.addPassword(pass);
+    userInfo.allowUserOnAuth(fd);
     return "+OK\r\n";
 }
 
-std::string authenticateUser(std::string password, UserInfo& userInfo)
+std::string authenticateUser(std::string& username, std::string& password, int& fd, RedisAllData& redisDb)
 {
-    if(userInfo.checkPassword(password)) {
+    UserInfo* userInfo = &redisDb.userData[username];
+    if(userInfo->checkPassword(password)) {
+        userInfo->allowUserOnAuth(fd);
+        redisDb.currUser = username;
         return "+OK\r\n";
     }
     else {
@@ -42,3 +46,7 @@ std::string authenticateUser(std::string password, UserInfo& userInfo)
     }
 }
 
+bool isUserAllowed(int&fd, std::string& currUser, RedisAllData& redisDb){
+    UserInfo* userInfo = &redisDb.userData[currUser];
+    return userInfo->isNoPassSet() || userInfo->isUserAllowed(fd); 
+}

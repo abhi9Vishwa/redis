@@ -4,6 +4,7 @@
 #include "processCmds.hpp"
 #include "helperFunc.hpp"
 #include "broadcastToRep.hpp"
+#include "authHandler.hpp"
 
 
 #include <bits/stdc++.h>
@@ -32,7 +33,19 @@ void handle_client(int client_fd, RedisAllData& redisDb, RedisInfo& redisInfo) {
 
             try {
                 vector<string> cmds = RESPArrayParser(req);
-
+                if(!isUserAllowed(client_fd, redisDb.currUser, redisDb)){
+                    // whether curr command auth or not
+                    cout<< cmds[0] << cmds.size();
+                    if(cmds.size() >= 3 && cmds[0] == "AUTH"){
+                        string resp = authenticateUser(cmds[1], cmds[2],client_fd, redisDb);
+                        sendData(resp, client_fd);
+                    }
+                    else{
+                        string resp = "-NOAUTH Authentication required.";
+                        sendData(resp, client_fd);
+                    }
+                    continue;
+                }
                 if(cmds[0] == "REPLCONF" && cmds[1] == "ACK"){
                     cout<< "received offset from slave: "<<req<<endl;
                     updateRepsOffset(client_fd, cmds, redisDb);
